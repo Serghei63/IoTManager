@@ -7,7 +7,6 @@ class F1031V : public IoTItem {
 private:
     uint8_t _pin = 255;
     float _maxFlow = 2.0f;     // Максимальный расход по даташиту (например, 2 SLPM)
-    float _multiply = 1.0f;    // Доп. коэффициент (если нужно перевести в другие единицы)
     int _avgSamples = 10;      // Количество усреднений для сглаживания шумов ADC
 
 public:
@@ -24,7 +23,6 @@ public:
 
         // 2. Читаем параметры датчика из конфига
         jsonRead(parameters, F("maxFlow"), _maxFlow, false); // Макс. расход датчика (2, 10 или 25)
-        jsonRead(parameters, F("multiply"), _multiply, false);
         jsonRead(parameters, F("samples"), _avgSamples, false);
 
         // 3. Интервал опроса
@@ -63,8 +61,6 @@ public:
 
         if (flow < 0.0f) flow = 0.0f; // Защита от отрицательных значений при околонулевом потоке
 
-        // 5. Итоговое значение с учетом multiply
-       // value.valD = flow * _multiply;
         value.valD = flow;
 
         SerialPrint("I", F("F1031V"), "'" + _id + "' Raw ADC: " + String(rawAdc, 0) + 
