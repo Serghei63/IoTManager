@@ -1,0 +1,46 @@
+{
+    "menuSection": "virtual_elements",
+    "configItem": [
+        {
+            "global": 0,
+            "name": "Логирование в Svg",
+            "type": "Writing",
+            "subtype": "LogTxt",
+            "id": "log_svg_1",
+            "widget": "",
+            "page": "",
+            "descr": "",
+            "num": 1,
+            "int": 1,
+            "ids": "v1,v2,v3",
+            "points": 300,
+			"path": "/lg/day_log.txt"
+
+        }
+    ],
+    "about": {
+        "authorName": "Crasnicov Serghei",
+        "authorContact": "",
+        "authorGit": "",
+        "specialThanks": "@Anatoly_kld",
+        "moduleName": "LogTxt",
+        "moduleVersion": "0.0",
+        "usedRam": {
+            "esp32_4mb": 15,
+            "esp8266_4mb": 15
+        },
+        "title": "Логирование в график",
+        "moduleDesc": "Расширение позволяющее логировать список любых величин в файл .svg В любой момент заходите через браузер по адресу http://192.168.x.x/lg/day_log.svg — и браузер сразу показывает вам красивый векторный график!",
+        "propInfo": {
+            "int": "Интервал логирования в мнутах, рекомендуется для esp8266 использоать интервал не менее 5-ти минут",
+            "ids": "Список ID величин, которые будем логировать",
+            "points": "Максимальное количество точек в одном файле, может быть не более 300. Не рекомендуется менять этот параметр",
+			"yMin": ""
+        }
+    },
+    "defActive": false,
+    "usedLibs": {
+        "esp32*": [],
+        "esp82*": []
+    }
+}

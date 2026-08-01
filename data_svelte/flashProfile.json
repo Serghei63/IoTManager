@@ -47,6 +47,10 @@
                 "active": false
             },
             {
+                "path": "src/modules/virtual/LogTxt",
+                "active": false
+            },
+            {
                 "path": "src/modules/virtual/Math",
                 "active": false
             },
