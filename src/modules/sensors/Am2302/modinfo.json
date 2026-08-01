@@ -1,0 +1,62 @@
+{
+    "menuSection": "sensors",
+    "configItem": [
+        {
+            "global": 0,
+            "name": "AM2302 Температура",
+            "type": "Reading",
+            "subtype": "Am2302t",
+            "id": "tmp3",
+            "widget": "anydataTmp",
+            "page": "Сенсоры",
+            "descr": "Температура",
+            "int": 15,
+            "pin": 2,
+            "senstype": "am2302"
+        },
+        {
+            "global": 0,
+            "name": "AM2302 Влажность",
+            "type": "Reading",
+            "subtype": "Am2302h",
+            "id": "Hum3",
+            "widget": "anydataHum",
+            "page": "Сенсоры",
+            "descr": "Влажность",
+            "int": 15,
+            "pin": 2,
+            "senstype": "am2302"
+        }
+    ],
+    "about": {
+        "authorName": "Ilya Belyakov",
+        "authorContact": "https://t.me/Biveraxe",
+        "authorGit": "https://github.com/biveraxe",
+        "specialThanks": "Serghei Crasnicov @Serghei63",
+        "moduleName": "Am2302",
+        "moduleVersion": "1.0",
+        "usedRam": {
+            "esp32_4mb": 15,
+            "esp8266_4mb": 15
+        },
+        "subTypes": [
+            "Am2302t",
+            "Am2302h"
+        ],
+        "title": "Сенсор температуры и влажности с am2302",
+        "moduleDesc": "Позволяет получить значения температуры и влажности с am2302 или am2302.",
+        "propInfo": {
+            "senstype": "Тип сенсора Am2302.",
+            "int": "Количество секунд между опросами датчика."
+        }
+    },
+    "defActive": false,
+    "usedLibs": {
+        "esp32*": [
+        "https://github.com/hasenradball/AM2302-Sensor"
+        ],
+        "esp82*": [
+		"https://github.com/hasenradball/AM2302-Sensor"
+    ]
+  }
+}
