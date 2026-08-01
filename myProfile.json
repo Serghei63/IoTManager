@@ -573,6 +573,12 @@
                 "active": false
             }
         ],
+        "Экраны": [
+            {
+                "path": "src/modules/display/St7789",
+                "active": false
+            }
+        ],
         "screens": [
             {
                 "path": "src/modules/display/DwinI",
@@ -588,6 +594,10 @@
             },
             {
                 "path": "src/modules/display/LedFX",
+                "active": false
+            },
+            {
+                "path": "src/modules/display/Max7219",
                 "active": false
             },
             {
@@ -608,6 +618,10 @@
             },
             {
                 "path": "src/modules/display/Smi2_m",
+                "active": false
+            },
+            {
+                "path": "src/modules/display/St7735",
                 "active": false
             },
             {

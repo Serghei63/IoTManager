@@ -209,6 +209,9 @@
         "moduleName": "TelegramLT"
     },
     {
+        "header": "Экраны"
+    },
+    {
         "header": "screens"
     }
 ]
