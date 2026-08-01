@@ -18,3 +18,4 @@ extern const String getDateTimeDotFormatedFromUnix(unsigned long unixTime);
 extern const String getTimeDotFormatedFromUnix(unsigned long unixTime);
 extern unsigned long gmtTimeToLocal(unsigned long gmtTimestamp);
 extern const String getDateDotFormatedFromUnix(unsigned long unixTime);
+extern const String getTimeLocal_Weekday(bool textMode);//======================
