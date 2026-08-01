@@ -5,6 +5,12 @@
         }
     },
     "modules": {
+        "virtual_elements": [
+            {
+                "path": "src/modules/virtual/SDLoging",
+                "active": false
+            }
+        ],
         "virtual_elments": [
             {
                 "path": "src/modules/virtual/Benchmark",
@@ -150,6 +156,10 @@
             },
             {
                 "path": "src/modules/sensors/DS2401",
+                "active": false
+            },
+            {
+                "path": "src/modules/sensors/Ds2482Combined",
                 "active": false
             },
             {

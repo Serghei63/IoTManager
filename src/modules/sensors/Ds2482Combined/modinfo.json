@@ -1,0 +1,74 @@
+{
+    "menuSection": "sensors",
+    "configItem": [
+        {
+            "global": 1,
+            "name": "DS2482 Мастер Шины",
+            "type": "Reading",
+            "subtype": "Ds2482Hub",
+            "id": "ow_hub",
+            "widget": "",
+            "page": "Сенсоры",
+            "descr": "Главный модуль опроса шины 1-Wire через DS2482",
+            "int": 30
+        
+        },
+        {
+            "global": 0,
+            "name": "DS2482 Термометр DS18B20",
+            "type": "Reading",
+            "subtype": "Ds2482Temp",
+            "id": "t_street",
+            "widget": "anydataTmp",
+            "page": "Сенсоры",
+            "descr": "Датчик температуры на шине DS2482",
+            "int": 10,
+            "addr": "",
+            "round": 1
+        },
+        {
+            "global": 0,
+            "name": "DS2482 Счетчик DS2423",
+            "type": "Reading",
+            "subtype": "Ds2482Counter",
+            "id": "water_c",
+            "widget": "anydataLiter",
+            "page": "Сенсоры",
+            "descr": "Счетчик импульсов DS2423 через DS2482",
+            "int": 10,
+            "addr": "",
+            "chan": "A",
+            "multiply": 1,
+            "round": 0
+        }
+    ],
+    "about": {
+        "authorName": "Serghei Crasnicov",
+        "authorContact": "https://t.me/Serghei63",
+        "authorGit": "",
+        "specialThanks": "Bubnov Mikhail @Mit4bmw",
+        "moduleName": "Ds2482Combined",
+        "moduleVersion": "1.0",
+        "usedRam": {
+            "esp32_4mb": 20,
+            "esp8266_4mb": 20
+        },
+        "title": "Комплексный модуль DS2482 (DS18B20 + DS2423) - мост 1wire - I2C",
+        "moduleDesc": "Обеспечивает совместную работу датчиков температуры DS18B20 и двухканальных счетчиков импульсов DS2423 через аппаратный I2C-мастер DS2482-100.",
+        "propInfo": {
+            "addr": "Уникальный 64-битный HEX-адрес устройства на шине 1-Wire (например, 28EFEF101D0700B0).",
+            "chan": "Канал счетчика DS2423. Допустимые значения: A или B.",
+            "int": "Интервал обновления данных в секундах (для Хаба — частота физического опроса шины, для датчиков — частота генерации событий)."
+        }
+    },
+    "defActive": false,
+    "usedLibs": {
+        "esp32*": [
+            "https://github.com/milesburton/Arduino-Temperature-Control-Library"
+        ],
+        "esp82*": [
+            "https://github.com/joeyoung/DS2482",
+            "https://github.com/milesburton/Arduino-Temperature-Control-Library"
+        ]
+    }
+}

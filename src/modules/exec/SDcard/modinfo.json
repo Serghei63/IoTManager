@@ -14,18 +14,18 @@
         }
     ],
     "about": {
-        "authorName": "Ilya Belyakov",
-        "authorContact": "https://t.me/Biveraxe",
-        "authorGit": "https://github.com/biveraxe",
-        "specialThanks": "",
+        "authorName": "Serghei Crasnicov",
+        "authorContact": "",
+        "authorGit": "",
+        "specialThanks": "Ilya Belyakov",
         "moduleName": "SDcard",
-        "moduleVersion": "1.0",
+        "moduleVersion": "2.0",
         "usedRam": {
             "esp32_4mb": 15,
             "esp8266_4mb": 15
         },
-        "title": "SD карта (в разработке)",
-        "moduleDesc": "Предназначен для специальной платы esp32 со встроенной камерой. Добавляет в прошивку функцию сохранения фото из оперативной памяти. Работает в паре с EspCam. Это экспериментальные модули и в будущем планируется пересобрать их.",
+        "title": "SD карта",
+        "moduleDesc": "Предназначен для платы esp32 c любым SD картридером. Добавляет в прошивку функцию логирования данных на SD карту. Работает совместно с модулем SDLoging, который позволяет логировать данные в графики на SD карту. В модуле SDLoging можно указать интервал логирования и ID величины, которую нужно логировать. Данные графиков хранятся на внешней SD-карте, что снимает ограничения на объем логов и защищает внутреннюю память flash от износа.",
         "propInfo": {
             "int": "Не используется."
         }
@@ -33,7 +33,7 @@
     "defActive": false,
     "usedLibs": {
         "esp32*": [
-            "espressif/esp32-camera @ ^2.0.0"
+            "https://github.com/greiman/sdfat"
         ]
     }
 }
