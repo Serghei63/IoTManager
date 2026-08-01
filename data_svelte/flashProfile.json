@@ -165,6 +165,10 @@
                 "active": false
             },
             {
+                "path": "src/modules/sensors/F1031",
+                "active": false
+            },
+            {
                 "path": "src/modules/sensors/FreqMeter",
                 "active": false
             },
@@ -291,6 +295,10 @@
             {
                 "path": "src/modules/sensors/UART",
                 "active": false
+            },
+            {
+                "path": "src/modules/sensors/Vl53l0x",
+                "active": false
             }
         ],
         "executive_devices": [
@@ -379,6 +387,14 @@
                 "active": false
             },
             {
+                "path": "src/modules/exec/Radio",
+                "active": false
+            },
+            {
+                "path": "src/modules/exec/Radio1334",
+                "active": false
+            },
+            {
                 "path": "src/modules/exec/SDcard",
                 "active": false
             },
@@ -432,6 +448,14 @@
         "screens": [
             {
                 "path": "src/modules/display/DwinI",
+                "active": false
+            },
+            {
+                "path": "src/modules/display/Gc9",
+                "active": false
+            },
+            {
+                "path": "src/modules/display/Gc9A",
                 "active": false
             },
             {

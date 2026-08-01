@@ -1,0 +1,67 @@
+{
+    "menuSection": "executive_devices",
+    "configItem": [
+        {
+            "global": 0,
+            "name": "I2S Radio",
+            "type": "Reading",
+            "subtype": "Radio1334",
+            "id": "radio",
+            "widget": "",
+            "page": "Radio",
+            "descr": "",
+            "int": 1,
+            "pins": "25,22,26",
+            "volume": 70,
+            "url": "http://pub0201.101.ru:8000/stream/pro/aac/64/192"
+        }
+    ],
+    "about": {
+        "authorName": "Serghei Crasnicov",
+        "authorContact": "",
+        "authorGit": "",
+        "specialThanks": "",
+        "moduleName": "Radio1334",
+        "moduleVersion": "1.0",
+        "usedRam": {
+            "esp32_4mb": 15,
+            "esp8266_4mb": 15
+        },
+        "title": "I2S Radio (UDA1334A)",
+        "moduleDesc": "Интернет-радио по интерфейсу I2S на базе цап UDA1334A.",
+        "propInfo": {
+            "title": "Название текущей радиостанции.",
+            "track": "Название проигрываемого трека и исполнитель.",
+            "volume": "Уровень громкости (0-100).",
+            "pins": "GPIO строго по маркировке платы: WSEL, DIN, BCLK (по умолчанию: 25,22,26)"
+        },
+        "retInfo": "Содержит описание текущего статуса модуля, например, Time Out! - не может подключиться",
+        "funcInfo": [
+            {
+                "name": "play",
+                "descr": "Проиграть трек по URL . Пример: play(\"http://pub0201.101.ru:8000/stream/pro/aac/64/192\", \"Рок ФМ\")",
+                "params": [
+                    "URL трека", "Название Станции"
+                ]
+            },
+            {
+                "name": "stop",
+                "descr": "Остановить проигрывание трека",
+                "params": []
+            },
+            {
+                "name": "volume",
+                "descr": "Установить громкость",
+                "params": [
+                    "Значение громкости"
+                ]
+            }
+        ]
+    },
+    "defActive": false,
+    "usedLibs": {
+        "esp32*": [
+            "earlephilhower/ESP8266Audio @ ^1.9.7"  
+        ]
+    }
+}
