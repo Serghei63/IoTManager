@@ -24,5 +24,11 @@
     "wg": "group1",
     "debugTraceMsgTlgrm": 1,
     "udps": 1,
-    "settings_": ""
+    "settings_": "",
+    "wifirep_apchanel": 7,
+    "wifirep_apip": "192.168.4.1",
+    "wifirep_staip": "192.168.1.160",
+    "wifirep_netmask": "255.255.255.0",
+    "wifirep_gateway": "192.168.4.1",
+    "wifirep_dns": "192.168.4.1"
 }
