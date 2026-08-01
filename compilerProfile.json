@@ -9,9 +9,9 @@
         "wifirep_netmask": "255.255.255.0",
         "wifirep_gateway": "192.168.4.1",
         "wifirep_dns": "192.168.4.1",
-        "routerssid": "iot",
-        "routerpass": "hostel3333",
-        "timezone": 2,
+        "routerssid": "mega",
+        "routerpass": "11111111",
+        "timezone": 3,
         "ntp": "pool.ntp.org",
         "weblogin": "admin",
         "webpass": "admin",
@@ -33,7 +33,7 @@
     "projectProp": {
         "platformio": {
             "default_envs": "esp32_4mb3f",
-            "comments_default_envs": "choose from: esp8266_4mb, esp32_4mb, esp32_4mb3f, esp8266_16mb, esp32_16mb, esp32cam_4mb, esp32s2_4mb, esp32s3_16mb, esp32c3m_4mb, esp8266_1mb, esp8266_1mb_ota, esp8266_2mb, esp8266_2mb_ota, esp8285_1mb, esp8285_1mb_ota, esp32c6_4mb, esp32c6_8mb, bk7231n, esp32_wifirep",
+            "comments_default_envs": "choose from: esp8266_4mb, esp32_4mb, esp32_4mb3f, esp8266_16mb, esp32_16mb, esp32cam_4mb, esp32s2_4mb, esp32s3_16mb, esp32c3m_4mb, esp8266_1mb, esp8266_1mb_ota, esp8266_2mb, esp8266_2mb_ota, esp8285_1mb, esp8285_1mb_ota, esp32c6_4mb, esp32c6_8mb, bk7231n, esp32_wifirep, esp32s3_4848S040",
             "envs": [
                 {
                     "name": "esp8266_4mb",
@@ -159,7 +159,7 @@
         }
     },
     "modules": {
-        "virtual_elments": [
+        "virtual_elements": [
             {
                 "path": "src/modules/virtual/Benchmark",
                 "active": false
@@ -209,7 +209,19 @@
                 "active": false
             },
             {
+                "path": "src/modules/virtual/Pie",
+                "active": false
+            },
+            {
                 "path": "src/modules/virtual/Ping",
+                "active": false
+            },
+            {
+                "path": "src/modules/virtual/Runtime",
+                "active": false
+            },
+            {
+                "path": "src/modules/virtual/SDLoging",
                 "active": false
             },
             {
@@ -295,6 +307,10 @@
                 "active": false
             },
             {
+                "path": "src/modules/sensors/CanBUS",
+                "active": false
+            },
+            {
                 "path": "src/modules/sensors/Dht1122",
                 "active": false
             },
@@ -304,6 +320,10 @@
             },
             {
                 "path": "src/modules/sensors/DS2401",
+                "active": false
+            },
+            {
+                "path": "src/modules/sensors/Ds2482Combined",
                 "active": false
             },
             {
