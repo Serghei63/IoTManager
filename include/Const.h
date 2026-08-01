@@ -3,7 +3,7 @@
 
 // Версия прошивки
 
-#define FIRMWARE_VERSION 462
+#define FIRMWARE_VERSION 465
 
 #ifdef esp8266_1mb_ota
 #define FIRMWARE_NAME "esp8266_1mb_ota"
@@ -55,6 +55,10 @@
 
 #ifdef esp32s3_16mb
 #define FIRMWARE_NAME "esp32s3_16mb"
+#endif
+
+#ifdef esp32s3_4848S040
+#define FIRMWARE_NAME "esp32s3_4848S040"
 #endif
 
 #ifdef bk7231n
