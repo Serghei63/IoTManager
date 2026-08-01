@@ -1,6 +1,11 @@
 #include "StandWebServer.h"
 #ifdef STANDARD_WEB_SERVER
 
+// We'll use our own simple base64 implementation
+
+// External WebSocket client authentication status
+extern bool wsClientAuthenticated[WEBSOCKETS_CLIENT_MAX];
+
 File uploadFile;
 String unsupportedFiles = String();
 
@@ -15,6 +20,214 @@ enum UpdateType {
     FILESYSTEM
   };
 
+// Session management
+#define SESSION_TIMEOUT 60  // 1 hour in seconds
+
+struct AuthSession {
+    String sessionId;
+    unsigned long timestamp;
+};
+
+AuthSession activeSessions[5];  // Support up to 5 concurrent sessions
+
+// WebSocket client authentication status
+bool wsClientAuthenticated[WEBSOCKETS_CLIENT_MAX] = {false, false, false, false, false};
+
+// Generate a simple session ID
+String generateSessionId() {
+    String sessionId = "";
+    for (int i = 0; i < 16; i++) {
+        sessionId += (char)random(0, 255);
+    }
+    // Simple hex encoding instead of base64
+    String hexSessionId = "";
+    for (int i = 0; i < sessionId.length(); i++) {
+        char hex[3];
+        sprintf(hex, "%02X", (unsigned char)sessionId[i]);
+        hexSessionId += hex;
+    }
+    return hexSessionId;
+}
+
+// Check if a session is valid
+bool isValidSession(String sessionId) {
+    unsigned long currentTime = millis();
+    for (int i = 0; i < 5; i++) {
+        if (activeSessions[i].sessionId == sessionId) {
+            // Check if session is still valid (less than SESSION_TIMEOUT old)
+            if (currentTime - activeSessions[i].timestamp < SESSION_TIMEOUT * 1000) {
+                return true;
+            } else {
+                // Expire the session
+                activeSessions[i].sessionId = "";
+                activeSessions[i].timestamp = 0;
+                return false;
+            }
+        }
+    }
+    return false;
+}
+
+// Create a new session
+String createSession() {
+    String sessionId = generateSessionId();
+    unsigned long currentTime = millis();
+    
+    // Find an empty slot or overwrite the oldest session
+    int oldestIndex = 0;
+    unsigned long oldestTime = currentTime;
+    
+    for (int i = 0; i < 5; i++) {
+        if (activeSessions[i].sessionId == "") {
+            // Found an empty slot
+            activeSessions[i].sessionId = sessionId;
+            activeSessions[i].timestamp = currentTime;
+            return sessionId;
+        }
+        
+        if (activeSessions[i].timestamp < oldestTime) {
+            oldestTime = activeSessions[i].timestamp;
+            oldestIndex = i;
+        }
+    }
+    
+    // Overwrite the oldest session
+    activeSessions[oldestIndex].sessionId = sessionId;
+    activeSessions[oldestIndex].timestamp = currentTime;
+    return sessionId;
+}
+
+// Check HTTP Basic Authentication with session support
+bool checkBasicAuth() {
+    // Get credentials from settings
+    String authUsername = "admin";  // Default username
+    String authPassword = "admin";  // Default password
+    
+    // Try to read from settings
+    jsonRead(settingsFlashJson, "weblogin", authUsername);
+    jsonRead(settingsFlashJson, "webpass", authPassword);
+    
+    // If no credentials are set in settings or they're empty, allow access
+    if (authUsername == "" || authPassword == "") {
+        return true;
+    }
+    
+    // Check for session cookie
+    if (HTTP.hasHeader("Cookie")) {
+        String cookieHeader = HTTP.header("Cookie");
+        int sessionPos = cookieHeader.indexOf("sessionId=");
+        if (sessionPos != -1) {
+            int start = sessionPos + 9; // Length of "sessionId="
+            int end = cookieHeader.indexOf(";", start);
+            if (end == -1) end = cookieHeader.length();
+            String sessionId = cookieHeader.substring(start, end);
+            
+            if (isValidSession(sessionId)) {
+                return true;
+            }
+        }
+    }
+    
+    // Check if Authorization header is present
+    if (!HTTP.hasHeader("Authorization")) {
+        return false;
+    }
+    
+    // Get the Authorization header
+    String authHeader = HTTP.header("Authorization");
+    
+    // Check if it's Basic authentication
+    if (!authHeader.startsWith("Basic ")) {
+        return false;
+    }
+    
+    // Extract base64 encoded credentials
+    String encodedCredentials = authHeader.substring(6); // Remove "Basic " prefix
+    
+    // Create expected credentials string
+    String expectedCredentials = authUsername + ":" + authPassword;
+    
+    // We need to encode expected credentials in base64
+    // For ESP8266/ESP32, we can use the WebSockets library base64 function
+    // But first we need to include it
+    uint8_t* data = (uint8_t*)expectedCredentials.c_str();
+    size_t length = expectedCredentials.length();
+    
+    // Since we can't easily access the WebSockets base64 function directly,
+    // we'll implement a simple base64 encoding here
+    // This is a simplified version that should work for our needs
+    static const char* BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    
+    String expectedEncoded = "";
+    int val = 0, valb = -6;
+    
+    for (unsigned int i = 0; i < length; i++) {
+        val = (val << 8) + data[i];
+        valb += 8;
+        while (valb >= 0) {
+            expectedEncoded += BASE64_CHARS[(val >> valb) & 0x3F];
+            valb -= 6;
+        }
+    }
+    if (valb > -6) expectedEncoded += BASE64_CHARS[((val << 8) >> (valb + 8)) & 0x3F];
+    while (expectedEncoded.length() % 4) expectedEncoded += '=';
+    
+    // Compare with provided credentials
+    return encodedCredentials.equals(expectedEncoded);
+}
+
+// Handle authentication and create session if credentials are valid
+bool handleAuthenticationAndCreateSession() {
+    String authUsername = "admin";
+    String authPassword = "admin";
+    jsonRead(settingsFlashJson, "weblogin", authUsername);
+    jsonRead(settingsFlashJson, "webpass", authPassword);
+    
+    if (authUsername != "" && authPassword != "" && HTTP.hasHeader("Authorization")) {
+        String authHeader = HTTP.header("Authorization");
+        if (authHeader.startsWith("Basic ")) {
+            // Validate credentials
+            String encodedCredentials = authHeader.substring(6);
+            String expectedCredentials = authUsername + ":" + authPassword;
+            uint8_t* data = (uint8_t*)expectedCredentials.c_str();
+            size_t length = expectedCredentials.length();
+            static const char* BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+            String expectedEncoded = "";
+            int val = 0, valb = -6;
+            for (unsigned int i = 0; i < length; i++) {
+                val = (val << 8) + data[i];
+                valb += 8;
+                while (valb >= 0) {
+                    expectedEncoded += BASE64_CHARS[(val >> valb) & 0x3F];
+                    valb -= 6;
+                }
+            }
+            if (valb > -6) expectedEncoded += BASE64_CHARS[((val << 8) >> (valb + 8)) & 0x3F];
+            while (expectedEncoded.length() % 4) expectedEncoded += '=';
+            
+            if (encodedCredentials.equals(expectedEncoded)) {
+                // Credentials valid, create session
+                String sessionId = createSession();
+                HTTP.sendHeader("Set-Cookie", "sessionId=" + sessionId + "; Path=/; HttpOnly");
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// Send 401 Unauthorized response with WWW-Authenticate header and set session cookie
+void requestAuthentication(String sessionId = "") {
+    HTTP.sendHeader("WWW-Authenticate", "Basic realm=\"IoT Manager Login\"");
+    
+    // If we have a session ID, set it as a cookie
+    if (sessionId != "") {
+        String cookieHeader = "sessionId=" + sessionId + "; Path=/; HttpOnly";
+        HTTP.sendHeader("Set-Cookie", cookieHeader);
+    }
+    
+    HTTP.send(401, "text/plain", "Unauthorized");
+}
 
 void standWebServerInit() {
     //  Кэшировать файлы для быстрой работы
@@ -51,6 +264,15 @@ void standWebServerInit() {
     // });
 
     HTTP.on("/set", HTTP_GET, []() {
+        // Check for existing session first
+        if (!checkBasicAuth()) {
+            // If no valid session, check credentials and create new session
+            if (!handleAuthenticationAndCreateSession()) {
+                requestAuthentication();
+                return;
+            }
+        }
+        
         if (HTTP.hasArg(F("routerssid")) && WiFi.getMode() == WIFI_AP) {
             jsonWriteStr(settingsFlashJson, F("routerssid"), HTTP.arg(F("routerssid")));
             syncSettingsFlashJson();
@@ -76,39 +298,149 @@ void standWebServerInit() {
     // WEB SERVER INIT
 
     // Filesystem status
-    HTTP.on("/status", HTTP_GET, handleStatus);
+    HTTP.on("/status", HTTP_GET, []() {
+        // Check for existing session first
+        if (!checkBasicAuth()) {
+            // If no valid session, check credentials and create new session
+            if (!handleAuthenticationAndCreateSession()) {
+                requestAuthentication();
+                return;
+            }
+        }
+        handleStatus();
+    });
 
     // List directory
-    HTTP.on("/list", HTTP_GET, handleFileList);
+    HTTP.on("/list", HTTP_GET, []() {
+        // Check for existing session first
+        if (!checkBasicAuth()) {
+            // If no valid session, check credentials and create new session
+            if (!handleAuthenticationAndCreateSession()) {
+                requestAuthentication();
+                return;
+            }
+        }
+        handleFileList();
+    });
 
     // Load editor
-    HTTP.on("/edit", HTTP_GET, handleGetEdit);
+    HTTP.on("/edit", HTTP_GET, []() {
+        // Check for existing session first
+        if (!checkBasicAuth()) {
+            // If no valid session, check credentials and create new session
+            if (!handleAuthenticationAndCreateSession()) {
+                requestAuthentication();
+                return;
+            }
+        }
+        handleGetEdit();
+    });
 
     // Create file
-    HTTP.on("/edit", HTTP_PUT, handleFileCreate);
+    HTTP.on("/edit", HTTP_PUT, []() {
+        // Check for existing session first
+        if (!checkBasicAuth()) {
+            // If no valid session, check credentials and create new session
+            if (!handleAuthenticationAndCreateSession()) {
+                requestAuthentication();
+                return;
+            }
+        }
+        handleFileCreate();
+    });
 
     // Delete file
-    HTTP.on("/edit", HTTP_DELETE, handleFileDelete);
+    HTTP.on("/edit", HTTP_DELETE, []() {
+        // Check for existing session first
+        if (!checkBasicAuth()) {
+            // If no valid session, check credentials and create new session
+            if (!handleAuthenticationAndCreateSession()) {
+                requestAuthentication();
+                return;
+            }
+        }
+        handleFileDelete();
+    });
 
     // Upload file
     // - first callback is called after the request has ended with all parsed arguments
     // - second callback handles file upload at that location
-    HTTP.on("/edit", HTTP_POST, replyOK, handleFileUpload);
+    HTTP.on("/edit", HTTP_POST, []() {
+        // Check for existing session first
+        if (!checkBasicAuth()) {
+            // If no valid session, check credentials and create new session
+            if (!handleAuthenticationAndCreateSession()) {
+                requestAuthentication();
+                return;
+            }
+        }
+        replyOK();
+    }, handleFileUpload);
+    
     // отображение страницы с полем ввода для сервера обновления
-    HTTP.on("/localota", HTTP_GET, handleLocalOTA);
+    HTTP.on("/localota", HTTP_GET, []() {
+        // Check for existing session first
+        if (!checkBasicAuth()) {
+            // If no valid session, check credentials and create new session
+            if (!handleAuthenticationAndCreateSession()) {
+                requestAuthentication();
+                return;
+            }
+        }
+        handleLocalOTA();
+    });
+    
     // непосредственно ОТА обновление со стороннего сервера 
-    HTTP.on("/localota_handler", HTTP_GET, handleLocalOTA_Handler);
+    HTTP.on("/localota_handler", HTTP_GET, []() {
+        // Check for existing session first
+        if (!checkBasicAuth()) {
+            // If no valid session, check credentials and create new session
+            if (!handleAuthenticationAndCreateSession()) {
+                requestAuthentication();
+                return;
+            }
+        }
+        handleLocalOTA_Handler();
+    });
 
     // Обработка обновления от WS drag&drop
     HTTP.on("/update", HTTP_POST, []() {
+        // Check for existing session first
+        if (!checkBasicAuth()) {
+            // If no valid session, check credentials and create new session
+            if (!handleAuthenticationAndCreateSession()) {
+                requestAuthentication();
+                return;
+            }
+        }
         HTTP.send(200); // Для CORS
       }, handleUpdateOTA);
     
-      HTTP.on("/update", HTTP_OPTIONS, handleCors);
+    HTTP.on("/update", HTTP_OPTIONS, []() {
+        // Check for existing session first
+        if (!checkBasicAuth()) {
+            // If no valid session, check credentials and create new session
+            if (!handleAuthenticationAndCreateSession()) {
+                requestAuthentication();
+                return;
+            }
+        }
+        handleCors();
+    });
 
     // Default handler for all URIs not defined above
     // Use it to read files from filesystem
-    HTTP.onNotFound(handleNotFound);
+    HTTP.onNotFound([]() {
+        // Check for existing session first
+        if (!checkBasicAuth()) {
+            // If no valid session, check credentials and create new session
+            if (!handleAuthenticationAndCreateSession()) {
+                requestAuthentication();
+                return;
+            }
+        }
+        handleNotFound();
+    });
 }
 
 ////////////////////////////////

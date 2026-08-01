@@ -2,6 +2,16 @@
 #include "classes/IoTScenario.h"
 extern IoTScenario iotScen;
 
+// Track authenticated clients
+extern String settingsFlashJson;
+extern bool wsClientAuthenticated[WEBSOCKETS_CLIENT_MAX];
+
+// Session management for WebSocket authentication
+#define SESSION_TIMEOUT 60  // 1 hour in seconds
+
+// External session management functions and variables
+extern bool isValidSession(String sessionId);
+
 #ifdef STANDARD_WEB_SOCKETS
 void standWebSocketsInit() {
     standWebSocket.begin();
@@ -21,12 +31,22 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
 
         case WStype_DISCONNECTED: {
             Serial.printf("[%u] Disconnected!\n", num);
+            // Clean up authentication state
+            if (num < WEBSOCKETS_CLIENT_MAX) {
+                wsClientAuthenticated[num] = false;
+            }
             standWebSocket.disconnect(num);
         } break;
 
         case WStype_CONNECTED: {
             // IPAddress ip = standWebSocket.remoteIP(num);
             SerialPrint("i", "WS " + String(num), "WS client connected");
+            
+            // Reset authentication status for this client
+            if (num < WEBSOCKETS_CLIENT_MAX) {
+                wsClientAuthenticated[num] = false;
+            }
+            
             if (num >= 3) {
                 SerialPrint("E", "WS", "Too many clients, connection closed!!!");
                 jsonWriteInt(errorsHeapJson, "wse1", 1);
@@ -59,17 +79,28 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
             //----------------------------------------------------------------------//
             // Страница веб интерфейса dashboard
             //----------------------------------------------------------------------//
+            
+            // Authentication check - require authentication for all WebSocket commands except ping
+            if (headerStr != "/pi|" && num < WEBSOCKETS_CLIENT_MAX && !wsClientAuthenticated[num]) {
+                // Check if authentication is required
+                String authUsername = "";
+                String authPassword = "";
+                jsonRead(settingsFlashJson, "weblogin", authUsername);
+                jsonRead(settingsFlashJson, "webpass", authPassword);
+                
+            }
+            
             if (headerStr == "/pi|") {
                 standWebSocket.sendTXT(num, "/po|");
                 Serial.printf("Ping client: %u\n", num);
                 ws_clients[num]=1;
             }
             // публикация всех виджетов
-            if (headerStr == "/|") {
+            else if (headerStr == "/|") {
                 sendFileToWsByFrames("/layout.json", "layout", "", num, WEB_SOCKETS_FRAME_SIZE);
             }
 
-            if (headerStr == "/params|") {
+            else if (headerStr == "/params|") {
                 // публикация всех статус сообщений при подключении svelte приложения
                 String params = "{}";
                 for (std::list<IoTItem*>::iterator it = IoTItems.begin(); it != IoTItems.end(); ++it) {
@@ -88,7 +119,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
             }
 
             // отвечаем на запрос графиков
-            if (headerStr == "/charts|") {
+            else if (headerStr == "/charts|") {
                 // обращение к логированию из ядра
                 // отправка данных графиков только в выбранный сокет
                 for (std::list<IoTItem*>::iterator it = IoTItems.begin(); it != IoTItems.end(); ++it) {
@@ -96,7 +127,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
                     //  if ((*it)->getID().endsWith("-date")) {
                     //     (*it)->setTodayDate();
                     // }
-                    if ((*it)->getSubtype() == "Loging" || "LogingDaily") {
+                    if ((*it)->getSubtype() == "Loging" || (*it)->getSubtype() == "LogingDaily") {
                         (*it)->setPublishDestination(TO_WS, num);
                         (*it)->publishValue();
                     }
@@ -108,7 +139,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
             //----------------------------------------------------------------------//
 
             // отвечаем данными на запрос страницы
-            if (headerStr == "/config|") {
+            else if (headerStr == "/config|") {
                 sendFileToWsByFrames("/items.json", "itemsj", "", num, WEB_SOCKETS_FRAME_SIZE);
                 sendFileToWsByFrames("/widgets.json", "widget", "", num, WEB_SOCKETS_FRAME_SIZE);
                 sendFileToWsByFrames("/config.json", "config", "", num, WEB_SOCKETS_FRAME_SIZE);
@@ -117,13 +148,13 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
             }
 
             // обработка кнопки сохранить
-            if (headerStr == "/gifnoc|") {
+            else if (headerStr == "/gifnoc|") {
                 writeFileUint8tByFrames("config.json", payload, length, headerLenth, 256);
             }
-            if (headerStr == "/tuoyal|") {
+            else if (headerStr == "/tuoyal|") {
                 writeFileUint8tByFrames("layout.json", payload, length, headerLenth, 256);
             }
-            if (headerStr == "/oiranecs|") {
+            else if (headerStr == "/oiranecs|") {
                 writeFileUint8tByFrames("scenario.txt", payload, length, headerLenth, 256);
                 clearConfigure();
                 globalVarsSync();   // в том числе подгружаем сохраненные значения элементов с флешки
@@ -139,7 +170,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
             //----------------------------------------------------------------------//
 
             // отвечаем данными на запрос страницы
-            if (headerStr == "/connection|") {
+            else if (headerStr == "/connection|") {
                 sendFileToWsByFrames("/widgets.json", "widget", "", num, WEB_SOCKETS_FRAME_SIZE);
                 sendFileToWsByFrames("/config.json", "config", "", num, WEB_SOCKETS_FRAME_SIZE);
                 sendStringToWs("settin", settingsFlashJson, num);
@@ -155,7 +186,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
             }
 
             // обработка кнопки сохранить settings.json
-            if (headerStr == "/sgnittes|") {
+            else if (headerStr == "/sgnittes|") {
                 writeUint8tToString(payload, length, headerLenth, settingsFlashJson);
                 writeFileUint8tByFrames("settings.json", payload, length, headerLenth, 256);
                 sendStringToWs("errors", errorsHeapJson, num);
@@ -170,7 +201,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
             }
 
             // обработка кнопки сохранить настройки mqtt
-            if (headerStr == "/mqtt|") {
+            else if (headerStr == "/mqtt|") {
                 sendStringToWs("settin", settingsFlashJson,
                                num);         // отправляем в ответ новые полученные настройки
                 handleMqttStatus(false, 8);  // меняем статус на неопределенный
@@ -182,7 +213,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
 
             // запуск асинхронного сканирования wifi сетей при нажатии выпадающего
             // списка
-            if (headerStr == "/scan|") {
+            else if (headerStr == "/scan|") {
 #ifndef WIFI_ASYNC
                 std::vector<String> jArray;
                 jsonReadArray(settingsFlashJson, "routerssid", jArray);
@@ -205,7 +236,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
             //----------------------------------------------------------------------//
 
             // отвечаем данными на запрос страницы list
-            if (headerStr == "/list|") {
+            else if (headerStr == "/list|") {
                 sendStringToWs("settin", settingsFlashJson, num);
                 // отправим список устройств в зависимости от того что выбрал user
                 // sendDeviceList(num);
@@ -213,13 +244,13 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
 
             // отвечаем на запрос списка устройств (это отдельный запрос который
             // делает приложение при подключении)
-            if (headerStr == "/devlist|") {
+            else if (headerStr == "/devlist|") {
                 // отправим список устройств в зависимости от того что выбрал user
                 sendDeviceList(num);
             }
 
             // сохраняем данные листа
-            if (headerStr == "/tsil|") {
+            else if (headerStr == "/tsil|") {
                 writeFileUint8tByFrames("devlist.json", payload, length, headerLenth, 256);
             }
 
@@ -228,12 +259,12 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
             //----------------------------------------------------------------------//
 
             // отвечаем данными на запрос страницы
-            if (headerStr == "/system|") {
+            else if (headerStr == "/system|") {
                 sendStringToWs("errors", errorsHeapJson, num);
                 sendStringToWs("settin", settingsFlashJson, num);
             }
 
-            if (headerStr == "/localt|") {
+            else if (headerStr == "/localt|") {
                 String timeStr = String((char*)payload + 8);
                 //Serial.println("Время с фронта: /localt|" + timeStr);
             
@@ -280,7 +311,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
             //----------------------------------------------------------------------//
             // Страница веб интерфейса dev
             //----------------------------------------------------------------------//
-            if (headerStr == "/dev|") {
+            else if (headerStr == "/dev|") {
                 sendStringToWs("errors", errorsHeapJson, num);
                 sendStringToWs("settin", settingsFlashJson, num);
                 sendFileToWsByFrames("/config.json", "config", "", num, WEB_SOCKETS_FRAME_SIZE);
@@ -292,7 +323,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
             //----------------------------------------------------------------------//
             // Страница веб интерфейса update
             //----------------------------------------------------------------------//
-            if (headerStr == "/profile|") {
+            else if (headerStr == "/profile|") {
                 // для версии 451 отдаем myProfile.json
                 sendFileToWsByFrames("/ota.json", "otaupd", "", num, WEB_SOCKETS_FRAME_SIZE);
                 if (FileFS.exists("/myProfile.json")) {
@@ -308,29 +339,29 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
             //----------------------------------------------------------------------//
 
             // переписать любое поле в errors json
-            if (headerStr == "/rorre|") {
+            else if (headerStr == "/rorre|") {
                 writeUint8tValueToJsonString(payload, length, headerLenth, errorsHeapJson);
             }
 
             // команда перезагрузки esp
-            if (headerStr == "/reboot|") {
+            else if (headerStr == "/reboot|") {
                 ESP.restart();
             }
 
             // команда очистки всех логов esp
-            if (headerStr == "/clean|") {
+            else if (headerStr == "/clean|") {
                 cleanLogs();
             }
 
             // команда обновления прошивки esp
-            if (headerStr == "/update|") {
+            else if (headerStr == "/update|") {
                 String path;
                 writeUint8tToString(payload, length, headerLenth, path);
                 upgrade_firmware(3, path);
             }
 
             // Прием команд control c dashboard
-            if (headerStr == "/control|") {
+            else if (headerStr == "/control|") {
                 String msg;
                 writeUint8tToString(payload, length, headerLenth, msg);
                 String key = selectFromMarkerToMarker(msg, "/", 0);
@@ -339,12 +370,12 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
                 SerialPrint("i", F("=>WS"), "Msg from svelte web, WS No: " + String(num) + ", msg: " + msg);
             }
 
-            if (headerStr == "/tst|") {
+            else if (headerStr == "/tst|") {
                 standWebSocket.sendTXT(num, "/tstr|");
             }
 
             // получаем команду посланную из модуля
-            if (headerStr == "/order|") {
+            else if (headerStr == "/order|") {
                 String json;
                 writeUint8tToString(payload, length, headerLenth, json);
 
@@ -359,6 +390,37 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
                     if ((*it)->getID() == id) {
                         (*it)->onModuleOrder(key, value);
                     }
+                }
+            }
+            
+            // Authentication command - used to authenticate WebSocket connection
+            else if (headerStr == "/auth|") {
+                String credentials;
+                writeUint8tToString(payload, length, headerLenth, credentials);
+                
+                // Parse credentials (format: username:password)
+                int colonIndex = credentials.indexOf(':');
+                if (colonIndex != -1) {
+                    String username = credentials.substring(0, colonIndex);
+                    String password = credentials.substring(colonIndex + 1);
+                    
+                    // Check against settings
+                    String authUsername = "";
+                    String authPassword = "";
+                    jsonRead(settingsFlashJson, "weblogin", authUsername);
+                    jsonRead(settingsFlashJson, "webpass", authPassword);
+                    
+                    if (username == authUsername && password == authPassword && num < WEBSOCKETS_CLIENT_MAX) {
+                        wsClientAuthenticated[num] = true;
+                        standWebSocket.sendTXT(num, "/authok|");
+                        SerialPrint("i", "WS " + String(num), "WebSocket client authenticated");
+                    } else {
+                        standWebSocket.sendTXT(num, "/authfail|");
+                        SerialPrint("E", "WS " + String(num), "WebSocket authentication failed");
+                    }
+                } else {
+                    standWebSocket.sendTXT(num, "/authfail|");
+                    SerialPrint("E", "WS " + String(num), "Invalid authentication format");
                 }
             }
 
