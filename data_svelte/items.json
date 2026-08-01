@@ -7,9 +7,6 @@
         "header": "virtual_elements"
     },
     {
-        "header": "virtual_elments"
-    },
-    {
         "global": 0,
         "name": "1. Будильник (Cron)",
         "type": "Writing",

@@ -7,12 +7,6 @@
     "modules": {
         "virtual_elements": [
             {
-                "path": "src/modules/virtual/SDLoging",
-                "active": false
-            }
-        ],
-        "virtual_elments": [
-            {
                 "path": "src/modules/virtual/Benchmark",
                 "active": false
             },
@@ -61,7 +55,19 @@
                 "active": false
             },
             {
+                "path": "src/modules/virtual/Pie",
+                "active": false
+            },
+            {
                 "path": "src/modules/virtual/Ping",
+                "active": false
+            },
+            {
+                "path": "src/modules/virtual/Runtime",
+                "active": false
+            },
+            {
+                "path": "src/modules/virtual/SDLoging",
                 "active": false
             },
             {
