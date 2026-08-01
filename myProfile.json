@@ -255,6 +255,10 @@
                 "active": false
             },
             {
+                "path": "src/modules/sensors/Am2302",
+                "active": false
+            },
+            {
                 "path": "src/modules/sensors/AnalogAdc",
                 "active": false
             },
