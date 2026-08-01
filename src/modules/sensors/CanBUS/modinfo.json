@@ -1,0 +1,69 @@
+{
+    "menuSection": "sensors",
+    "configItem": [
+        {
+            "global": 0,
+            "name": "CanMaster",
+            "type": "Reading",
+            "subtype": "canMaster",
+            "id": "can",
+            "widget": "anydataTmp",
+            "page": "CAN",
+            "descr": "CAN шина",
+            "int": 2,
+            "can_id": "0x036",
+            "ask_id": "0x037",
+            "addr": 0,
+            "debug": 1
+
+        },
+                {
+            "global": 0,
+            "name": "CanSlave",
+            "type": "Reading",
+            "subtype": "canSlave",
+            "id": "cans",
+            "widget": "anydataTmp",
+            "page": "CAN slave",
+            "descr": "Чтение данных CAN",
+            "int": 2,
+            "cans_id": "0x036",
+            "dlc" : 1,
+            "adr": 0,
+            "debug": 1
+
+        }
+    ],
+    "about": {
+        "authorName": "Serghei Crasnicov",
+        "authorContact": "https://t.me/Serghei63",
+        "authorGit": "https://github.com/Serghei63",
+        "specialThanks": "Mit4bmw",
+        "moduleName": "CanBUS",
+        "moduleVersion": "0.0",
+        "usedRam": {
+            "esp32_4mb": 15,
+            "esp8266_4mb": 15
+        },
+        "subTypes": [
+            "canMaster" 
+        ],
+        "title": "CanBUS",
+        "moduleDesc": "Позволяет управлять оборудованием по протоколу CAN",
+        "propInfo": {
+            "debug": " 1 - включить вывод дебага , 0 - отключить дебаг"
+        },
+        "funcInfo": [
+
+        ]
+    },
+    "defActive": false,
+    "usedLibs": {
+        "esp32*": [
+            "https://github.com/autowp/arduino-mcp2515"
+        ],
+        "esp82*": [
+            "https://github.com/autowp/arduino-mcp2515"
+        ]
+    }
+}

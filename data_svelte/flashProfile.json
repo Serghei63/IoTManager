@@ -153,6 +153,10 @@
                 "active": false
             },
             {
+                "path": "src/modules/sensors/CanBUS",
+                "active": false
+            },
+            {
                 "path": "src/modules/sensors/Dht1122",
                 "active": false
             },
