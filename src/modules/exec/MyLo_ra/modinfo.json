@@ -3,22 +3,22 @@
     "configItem": [
         {
             "global": 0,
-            "name": "MySensorsGate",
+            "name": "MyLo_raGate",
             "type": "Reading",
-            "subtype": "MySensorsGate",
-            "id": "gt",
+            "subtype": "MyLo_raGate",
+            "id": "lgt",
             "widget": "nil",
             "page": "",
             "descr": ""
         },
         {
             "global": 0,
-            "name": "MySensorsNode",
+            "name": "MyLo_raNode",
             "type": "Reading",
-            "subtype": "MySensorsNode",
+            "subtype": "MyLo_raNode",
             "id": "n",
             "widget": "anydataTmp",
-            "page": "MySensors",
+            "page": "MyLo_ra",
             "descr": "Температура",
             "orange": 60,
             "red": 120,
@@ -27,25 +27,38 @@
         }
     ],
     "about": {
-        "authorName": "Dmitry Borisenko",
-        "authorContact": "https://t.me/Dmitry_Borisenko",
-        "authorGit": "https://github.com/DmitryBorisenko33",
+        "authorName": "",
+        "authorContact": "",
+        "authorGit": "",
         "specialThanks": "",
-        "moduleName": "MySensorsGate",
-        "moduleVersion": "2.0",
+        "moduleName": "MyLo_raGate",
+        "moduleVersion": "0.0",
         "usedRam": {
             "esp32_4mb": 15,
             "esp8266_4mb": 0
         },
-        "title": "Гейт MySensors",
-        "moduleDesc": "Устройство состоит из esp32 и подключенному к нему радиомодулю NRF24L01. Вместе в связке они образуют гейт, способный принимать данные датчиков. Датчики способны работать до нескольких лет на батарейках. Датчики делаются на базе nrf52832 от holyiot. Батарейки подключаются напрямик к nrf52832",
+        "title": "Гейт MyLo_ra",
+        "moduleDesc": "Устройство состоит из esp32 и подключенному к нему радиомодулю Ra-01.",
         "retInfo": "",
         "propInfo": {
             "id": "Для настройки следует выбрать один раз MySensorsGate и выбрать сколько необходимо раз MySensorsNode. Вместо ID нужно указать например - n100s1. Это значит что мы будем получать данные с ноды 100 и с сенсора этой ноды под номером 1",
             "orange": "количество минут после которого окрасить виджет в оранжевый цвет",
             "red": "количество минут после которого окрасить виджет в красный цвет",
             "offline": "количество минут после которого отобразить что устройство offline, если все три orange red и offline поставить в ноль - то функция окраски выключится"
-        }
+        },
+        "funcInfo": [
+            {
+                "name": "send",
+                "descr": "Отправить данные или команду на ноду/датчик MySensors. Пример: gt.send(30, 0, 2, 1, value)",
+                "params": [
+                    "Номер ноды",
+                    "Номер сенсора (Child ID)",
+                    "Тип данных",
+                    "Тип команды",
+                    "Значение (Payload)"
+                ]
+            }
+        ]
     },
     "defActive": false,
     "usedLibs": {

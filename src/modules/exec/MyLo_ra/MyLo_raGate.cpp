@@ -1,9 +1,9 @@
 #include "Global.h"
 #include "classes/IoTItem.h"
 #include "Arduino.h"
-#include "MySensorsGate.h"
+#include "MyLo_raGate.h"
 
-#ifdef MYSENSORS
+//#ifdef MYSENSORS
 
 bool _debug; 
 // callback библиотеки mysensors
@@ -54,17 +54,17 @@ String parseToString(const MyMessage& message) {
      return value; // <-- явный возврат на всякий случай
 }
 
-#endif
-class MySensorsGate : public IoTItem {
+//#endif
+class MyLo_raGate : public IoTItem {
    private:
    public:
-    MySensorsGate(String parameters) : IoTItem(parameters) { SerialPrint("i", "MySensors", "Gate initialized"); }
+    MyLo_raGate(String parameters) : IoTItem(parameters) { SerialPrint("i", "MyLo_ra", "Gate initialized"); }
 
     void doByInterval() {}
 
-    void loop() { loopMySensorsExecute(); }
+    void loop() { loopMyLo_raExecute(); }
 
-          ~MySensorsGate(){};
+          ~MyLo_raGate(){};
 
         IoTValue execute(String command, std::vector<IoTValue> &param) {
 
@@ -82,8 +82,7 @@ class MySensorsGate : public IoTItem {
 
             bool ok = false;
 
-             // Группируем типы данных MySensors по их формату
-
+            // Группируем типы данных MySensors по их формату
             switch (type) {
                 // --- 1. BOOLEAN (Логические: 0 или 1) ---
                 case V_STATUS:      // 2 (ранее V_LIGHT)
@@ -101,7 +100,6 @@ class MySensorsGate : public IoTItem {
                 case V_WEIGHT:      // 34 (Вес)
                 case V_VOLTAGE:     // 38 (Напряжение)
                 case V_CURRENT:     // 39 (Ток)
-
                     // Отправляем как float (указываем 2 знака после запятой)
                     ok = send(msg.set((float)param[4].valD, 2));
                     break;
@@ -114,7 +112,6 @@ class MySensorsGate : public IoTItem {
                 case V_VAR5:        // 28
                 case V_DISTANCE:    // 29 (Расстояние может быть большим)
                 case V_LIGHT_LEVEL: // 37
-
                     // Важно для переменных, хранящих большие значения (pt=4)
                     ok = send(msg.set((uint32_t)param[4].valD));
                     break;
@@ -126,16 +123,13 @@ class MySensorsGate : public IoTItem {
                 case V_IR_RECEIVE:  // 33
                 case V_RGB:         // 40 (Обычно передается как HEX строка, напр. "FF0000")
                 case V_RGBW:        // 41
-
                     // *Примечание: Если структура IoTValue поддерживает строки (например, param[4].valS),
                     // используйте msg.set(param[4].valS.c_str()). Если нет, конвертируем значение в строку.
-
                     ok = send(msg.set(String(param[4].valD).c_str()));
                     break;
 
                 // --- 5. INTEGER (Стандартные целые числа: 16-бит) ---
                 // Сюда попадают V_PERCENTAGE(3), V_WATT(17), V_VOLUME(20), V_DIRECTION(12) и всё остальное
-                
                 default:
                     ok = send(msg.set((int)param[4].valD));
                     break;
@@ -156,7 +150,7 @@ class MySensorsGate : public IoTItem {
     return {};
 }
 
-    void loopMySensorsExecute() {    
+    void loopMyLo_raExecute() {    
 
         if (mysensorBuf.length()) {
             String tmp = selectToMarker(mysensorBuf, ";");
@@ -175,10 +169,10 @@ class MySensorsGate : public IoTItem {
             if (childSensorId == "255") {
                 if (command == "3") {    // это особое внутреннее сообщение
                     if (type == "11") {  // название ноды
-                        SerialPrint("i", "MySensors", "===================== " + value + " =====================");
+                        SerialPrint("i", "MyLo_ra", "===================== " + value + " =====================");
                     }
                     if (type == "12") {  // версия ноды
-                        SerialPrint("i", "MySensors", "Node version: " + value);
+                        SerialPrint("i", "MyLo_ra", "Node version: " + value);
                     }
                 }
             } else {
@@ -190,13 +184,13 @@ class MySensorsGate : public IoTItem {
                     sensorType(type.toInt(), num, widget, descr);
 
                     descr.replace("#", " ");
-                    SerialPrint("i", "MySensors", "Presentation: " + ID + ": " + descr);
+                    SerialPrint("i", "MyLo_ra", "Presentation: " + ID + ": " + descr);
                 }
                 if (command == "1") {  // это данные
                     if (value != "") {
                         if (presentBeenStarted) {
                             presentBeenStarted = false;
-                            SerialPrint("i", "MySensors", "===================== " + nodeId + " =====================");
+                            SerialPrint("i", "MyLo_ra", "===================== " + nodeId + " =====================");
                         }
 
                         bool found = false;
@@ -208,11 +202,11 @@ class MySensorsGate : public IoTItem {
                             }
                         }
 
-                        SerialPrint("i", "MySensors", "node: " + nodeId + ", sensor: " + childSensorId + ", command: " + command + ", type: " + type + ", val: " + value + ", found: " + String(found));
+                        SerialPrint("i", "MyLo_ra", "node: " + nodeId + ", sensor: " + childSensorId + ", command: " + command + ", type: " + type + ", val: " + value + ", found: " + String(found));
                     }
                 }
                 if (command == "2") {  // это запрос значения переменной
-                    SerialPrint("i", "MySensors", "Request a variable value");
+                    SerialPrint("i", "MyLo_ra", "Request a variable value");
                 }
             }
 
@@ -230,7 +224,7 @@ class MySensorsGate : public IoTItem {
 
 };
 
-class MySensorsNode : public IoTItem {
+class MyLo_raNode : public IoTItem {
    private:
     String id = "";
     int orange = 0;
@@ -245,7 +239,7 @@ class MySensorsNode : public IoTItem {
     unsigned long difference;
 
    public:
-    MySensorsNode(String parameters) : IoTItem(parameters) {
+    MyLo_raNode(String parameters) : IoTItem(parameters) {
         jsonRead(parameters, F("id"), id);
 
         jsonRead(parameters, F("orange"), orange);
@@ -253,14 +247,14 @@ class MySensorsNode : public IoTItem {
         jsonRead(parameters, F("offline"), offline);
 
         dataFromNode = false;
-        SerialPrint("i", "MySensors", "Node initialized");
+        SerialPrint("i", "MyLo_ra", "Node initialized");
 
         jsonRead(parameters, "debug", _debug);
     }
 
     void setValue(const IoTValue& Value, bool genEvent = true) {
         value = Value;
-        regEvent(value.valD, "MySensorsNode", false, genEvent);
+        regEvent(value.valD, "MyLo_raNode", false, genEvent);
         _minutesPassed = 0;
         prevMillis = millis();
         dataFromNode = true;
@@ -307,14 +301,14 @@ class MySensorsNode : public IoTItem {
         sendSubWidgetsValues(id, json);
     }
 
-    ~MySensorsNode(){};
+    ~MyLo_raNode(){};
 };
 
-void* getAPI_MySensorsGate(String subtype, String param) {
-    if (subtype == F("MySensorsGate")) {
-        return new MySensorsGate(param);
-    } else if (subtype == F("MySensorsNode")) {
-        return new MySensorsNode(param);
+void* getAPI_MyLo_raGate(String subtype, String param) {
+    if (subtype == F("MyLo_raGate")) {
+        return new MyLo_raGate(param);
+    } else if (subtype == F("MyLo_raNode")) {
+        return new MyLo_raNode(param);
     } else {
         return nullptr;
     }

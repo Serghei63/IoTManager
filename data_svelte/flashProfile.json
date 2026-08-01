@@ -359,6 +359,10 @@
                 "active": false
             },
             {
+                "path": "src/modules/exec/MyLo_ra",
+                "active": false
+            },
+            {
                 "path": "src/modules/exec/MySensors",
                 "active": false
             },
