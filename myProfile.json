@@ -201,6 +201,10 @@
                 "active": false
             },
             {
+                "path": "src/modules/virtual/LogSd",
+                "active": true
+            },
+            {
                 "path": "src/modules/virtual/LogTxt",
                 "active": false
             },
@@ -578,7 +582,7 @@
             },
             {
                 "path": "src/modules/exec/SDcard",
-                "active": false
+                "active": true
             },
             {
                 "path": "src/modules/exec/SIM800",

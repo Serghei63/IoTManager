@@ -201,6 +201,10 @@
                 "active": false
             },
             {
+                "path": "src/modules/virtual/LogSd",
+                "active": false
+            },
+            {
                 "path": "src/modules/virtual/LogTxt",
                 "active": false
             },
