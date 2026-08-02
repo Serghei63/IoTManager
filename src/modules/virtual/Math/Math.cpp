@@ -78,6 +78,23 @@ public:
             valTmp.valD = nowInTimePeriod(param[0].valS, param[1].valS); 
             return valTmp;
         }
+        // Вставляем внутрь метода execute() класса IoTMath:
+    else if(command == "parseTimeToMinutes" && param.size() == 1) {
+        String timeStr = param[0].valS;
+        int colonIdx = timeStr.indexOf(':');
+        
+        IoTValue valTmp;
+        valTmp.isDecimal = true;
+        
+        if (colonIdx == -1) {
+            valTmp.valD = 0.0;
+        } else {
+            int hours = timeStr.substring(0, colonIdx).toInt();
+            int minutes = timeStr.substring(colonIdx + 1).toInt();
+            valTmp.valD = static_cast<float>((hours * 60) + minutes);
+        }
+        return valTmp;
+    }
 
         SerialPrint("E", F("IoTMath"), F("Unknown command or wrong parameters."));
         return {};
