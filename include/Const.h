@@ -61,6 +61,10 @@
 #define FIRMWARE_NAME "esp32s3_4848S040"
 #endif
 
+#ifdef esp32_wrover_n16r8
+#define FIRMWARE_NAME "esp32_wrover_n16r8"
+#endif
+
 #ifdef bk7231n
 #define FIRMWARE_NAME "bk7231n"
 #endif
