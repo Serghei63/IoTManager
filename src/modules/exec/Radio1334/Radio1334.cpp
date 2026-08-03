@@ -86,7 +86,7 @@ public:
                 instance->_file->RegisterMetadataCB(MDCallback1334, NULL);
 
                 // Буфер 20 КБ в RAM для защиты от иканий сети
-                instance->_buff = new AudioFileSourceBuffer(instance->_file, 2);
+                instance->_buff = new AudioFileSourceBuffer(instance->_file, 262144); // 256 KB buffer
                 
                 instance->_out = new AudioOutputI2S();
                 // Порядок вызова SetPinout: (BCLK, WCLK, DOUT)
