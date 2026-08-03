@@ -52,6 +52,10 @@ class Ds18b20 : public IoTItem {
         } else {
             string2hex(addr.c_str(), _deviceAddress);
         }
+
+              Serial.print("Parasite power ");
+            if (_sensor->isParasitePowerMode()) {Serial.println("ON");}
+                                else {Serial.println("OFF");}
     }
     //=======================================================================================================
     // doByInterval()
