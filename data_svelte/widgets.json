@@ -211,6 +211,30 @@
         "pointRadius": 0
     },
     {
+        "name": "chart7",
+        "label": "График двойной (линия)",
+        "widget": "chart",
+        "descr": "Температура и влажность",
+        "type": "line",
+        "series": [
+          "Temp",
+          "Hum"
+          ],
+        "color": "primary"
+    },
+    {
+        "name": "chart8",
+        "label": "График двойной (столбик)",
+        "widget": "chart",
+        "descr": "Температура и влажность",
+        "type": "bar",
+        "series": [
+          "Temp",
+          "Hum"
+          ],
+        "color": "primary"
+    },
+    {
         "name": "fillgauge",
         "label": "Бочка",
         "widget": "fillgauge",
@@ -310,7 +334,7 @@
         "name": "anydatamAmp",
         "label": "миллиАмперы",
         "widget": "anydata",
-        "after": "mAmp",
+        "after": "mA",
         "icon": "speedometer"
     },
     {
@@ -325,6 +349,20 @@
         "label": "миллиВатты",
         "widget": "anydata",
         "after": "mWt",
+        "icon": "speedometer"
+    },
+        {
+        "name": "anydataKm",
+        "label": "Километры",
+        "widget": "anydata",
+        "after": "km",
+        "icon": "speedometer"
+    },
+    {
+        "name": "anydataM",
+        "label": "Метры",
+        "widget": "anydata",
+        "after": "m",
         "icon": "speedometer"
     },
     {
@@ -343,7 +381,7 @@
     }, 
     {
         "name": "anydataSpeed",
-        "label": "мерты в секунду",
+        "label": "метры в секунду",
         "widget": "anydata",
         "after": "m/s",
         "icon": "speedometer"
@@ -354,6 +392,17 @@
         "widget": "anydata",
         "after": "°",
         "icon": "speedometer"
+    },
+    {
+        "name": "pie",
+        "label": "Диаграмма",
+        "widget": "pie",
+        "labels": [
+          "Error",
+          "Success",
+          "Warning"
+          ],
+        "colors": "primary,"
     },
     {
         "name": "anydataBar",
