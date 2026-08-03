@@ -22,6 +22,7 @@
 # esp32cam_4mb
 # esp32_16mb
 # esp32s2_4mb
+# esp32_wrover_n16r8
 # esp8266_1mb
 # esp8266_1mb_ota
 # esp8285_1mb
