@@ -8,43 +8,18 @@
 #include "AudioOutputI2S.h"
 #include "esp_task_wdt.h"
 
-// Декодеры всех поддерживаемых кодеков
+// Декодеры поддерживаемых кодеков
 #include "AudioGeneratorMP3.h"
 #include "AudioGeneratorAAC.h"
 #include "AudioGeneratorWAV.h"
 #include "AudioGeneratorFLAC.h"
 
-// Глобальные переменные для метаданных Icecast
-static String RadioTrackTitle = "";
-static volatile bool RadioTitleChanged = false;
-
-// Колбэк-функция перехвата названия песни из Icecast/Shoutcast потока
-void MDCallback1334(void *cbData, const char *type, bool isUnicode, const char *beacon) {
-    (void)cbData;
-    (void)isUnicode; // Чтобы компилятор не ругался на неиспользуемую переменную
-    
-    if (strstr(type, "StreamTitle") != nullptr && beacon != nullptr) {
-        String title = String(beacon);
-        title.trim();
-        
-        // Очищаем от кавычек Icecast: 'Artist - Song Title'
-        if (title.startsWith("'") && title.endsWith("'")) {
-            title = title.substring(1, title.length() - 1);
-        }
-
-        if (title.length() > 0 && title != RadioTrackTitle) {
-            RadioTrackTitle = title;
-            RadioTitleChanged = true;
-            Serial.printf("[UDA1334 Track] %s\n", RadioTrackTitle.c_str());
-        }
-    }
-}
-
 class Radio1334 : public IoTItem {
 private:
-    int _wclk = 25; // WSEL
-    int _dout = 22; // DIN
-    int _bclk = 26; // BCLK
+    // Новые пины по умолчанию: WSEL -> 18, DIN -> 19, BCLK -> 21
+    int _wclk = 18; // WSEL / WS
+    int _dout = 19; // DIN / DOUT
+    int _bclk = 21; // BCLK / BCK
     
     int _volume = 70; // 0..100%
     String _url = "";
@@ -53,7 +28,7 @@ private:
     // Компоненты ESP8266Audio
     AudioFileSourceHTTPStream* _file    = nullptr;
     AudioFileSourceBuffer*     _buff    = nullptr;
-    AudioGenerator*            _decoder = nullptr; // Универсальный декодер (AAC/MP3/WAV/FLAC)
+    AudioGenerator*            _decoder = nullptr;
     AudioOutputI2S*            _out     = nullptr;
     
     TaskHandle_t _radioTaskHandle = nullptr;
@@ -78,25 +53,25 @@ public:
                 instance->_needsConnect = false;
                 instance->stopAudioPipeline(); // Чистим старый поток перед запуском
 
+                vTaskDelay(pdMS_TO_TICKS(150)); // Небольшая пауза для дефрагментации Heap
+
                 Serial.printf("[UDA1334 Task] Connecting to: %s\n", instance->_url.c_str());
                 
+                // Создаем чистый HTTP-поток без перехватчиков метаданных
                 instance->_file = new AudioFileSourceHTTPStream(instance->_url.c_str());
-                
-                // Перехват метаданных Icecast
-                instance->_file->RegisterMetadataCB(MDCallback1334, NULL);
 
-                // Буфер 20 КБ в RAM для защиты от иканий сети
-                instance->_buff = new AudioFileSourceBuffer(instance->_file, 262144); // 256 KB buffer
+                // Буфер 256 KB в RAM/PSRAM для защиты от заиканий
+                instance->_buff = new AudioFileSourceBuffer(instance->_file, 262144);
                 
                 instance->_out = new AudioOutputI2S();
-                // Порядок вызова SetPinout: (BCLK, WCLK, DOUT)
+                
+                // Порядок вызова SetPinout у библиотеки строго: (BCLK, WCLK, DOUT)
                 instance->_out->SetPinout(instance->_bclk, instance->_wclk, instance->_dout);
                 
-                // Перевод громкости из 0..100% в диапазон 0.0 .. 1.0
                 float gain = (float)instance->_volume / 100.0f;
                 instance->_out->SetGain(gain);
 
-                // Выбор кодека на основе ссылки URL
+                // Выбор кодека на основе URL
                 String urlLower = instance->_url;
                 urlLower.toLowerCase();
 
@@ -113,7 +88,6 @@ public:
                     Serial.println("[UDA1334 Task] Selected codec: WAV");
                 } 
                 else {
-                    // По умолчанию считаем поток MP3
                     instance->_decoder = new AudioGeneratorMP3();
                     Serial.println("[UDA1334 Task] Selected codec: MP3");
                 }
@@ -177,23 +151,24 @@ public:
         String pins;
         jsonRead(parameters, "pins", pins);
         
-        // Порядок согласно шелкографии на плате: WSEL, DIN, BCLK
+        // Согласно твоему порядку в modinfo: WSEL (0), DIN (1), BCLK (2)
         _wclk = selectFromMarkerToMarker(pins, ",", 0).toInt();
         _dout = selectFromMarkerToMarker(pins, ",", 1).toInt();
         _bclk = selectFromMarkerToMarker(pins, ",", 2).toInt();
 
-        // Дефолты если пины не переписаны в конфиге
-        if (_wclk == 0) { _wclk = 25; }
-        if (_dout == 0) { _dout = 22; }
-        if (_bclk == 0) { _bclk = 26; }
+        // Устанавливаем новые дефолтные значения, если пины не переписаны в конфиге
+        if (_wclk == 0) { _wclk = 18; }
+        if (_dout == 0) { _dout = 19; }
+        if (_bclk == 0) { _bclk = 21; }
 
         jsonRead(parameters, "volume", _volume);
         jsonRead(parameters, "url", _url);
 
-        if (parameters.indexOf("\"name\"") != -1) {
-            jsonRead(parameters, "name", _stationName);
-        } else {
-            _stationName = "I2S Radio";
+        String stationTmp = "";
+        if (jsonRead(parameters, "station", stationTmp)) {
+            if (stationTmp != "") _stationName = stationTmp;
+        } else if (jsonRead(parameters, "name", stationTmp)) {
+            _stationName = stationTmp;
         }
 
         if (_url != "") {
@@ -232,25 +207,16 @@ public:
             _wifiReadyTime = 0;
             _needsConnect = true;
             
-            // Первичная инициализация событий
+            // Отправляем название станции и громкость при автостарте
             regEvent(_stationName, "title");
-            RadioTrackTitle = "Connecting...";
-            regEvent(RadioTrackTitle, "track");
+            regEvent(_stationName, "track");
             regEvent(String(_volume), "volume");
-        }
-
-        // Событие track отправляется СТРОГО по факту обновления метаданных из потока
-        if (RadioTitleChanged) {
-            RadioTitleChanged = false;
-            regEvent(RadioTrackTitle, "track");
         }
 
         IoTItem::loop();
     }
 
-    void doByInterval() override {
-        // Пусто: защищаем шину событий от лишнего спама
-    }
+    void doByInterval() override {}
 
     // Управление из UI веб-интерфейса
     void onModuleOrder(String &key, String &value) override {
@@ -281,17 +247,16 @@ public:
 
             if (_url != "") {
                 _needsConnect = true;
+                // Сразу устанавливаем понятное имя станции во все текстовые виджеты
                 regEvent(_stationName, "title");
-                RadioTrackTitle = "Loading...";
-                regEvent(RadioTrackTitle, "track");
+                regEvent(_stationName, "track");
             }
         }
         else if (command == "stop") {
             _needsStop = true;
             _stationName = "Stopped";
-            RadioTrackTitle = "";
             regEvent(_stationName, "title");
-            regEvent(RadioTrackTitle, "track");
+            regEvent("", "track");
         }
         else if (command == "volume") {
             if (param.size() > 0) {
