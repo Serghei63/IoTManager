@@ -1,7 +1,7 @@
 {
     "projectProp": {
         "platformio": {
-            "default_envs": "esp32_4mb3f"
+            "default_envs": "esp32s3_n16r8"
         }
     },
     "modules": {
