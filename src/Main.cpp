@@ -303,6 +303,19 @@ void setup() {
 #if defined(RESTART_DEBUG_INFO)    
     bootloop_panic_count = 0;
 #endif // RESTART_DEBUG_INFO
+
+    log_i("Total heap: %d", ESP.getHeapSize());
+    log_i("Free heap: %d", ESP.getFreeHeap());
+    
+    if (psramFound()) {
+        Serial.printf("PSRAM найдена!\n");
+        Serial.printf("Общий размер PSRAM: %d байт (%.2f MB)\n", 
+                      ESP.getPsramSize(), 
+                      ESP.getPsramSize() / (1024.0 * 1024.0));
+        Serial.printf("Свободно PSRAM: %d байт\n", ESP.getFreePsram());
+    } else {
+        Serial.println("ОШИБКА: PSRAM не обнаружена!");
+    }
 }
 
 void loop() {
