@@ -74,10 +74,10 @@ public:
                  canMsg.can_id  = _ask;                              // Использовать идентификатор подтверждения
                  canMsg.can_dlc = 0;                                // Никакие данные не нужны для ACK   // Задаем размер кадра
                  mcp2515.sendMessage(&canMsg);
-     //   if (_debug)
-     // {          
-     //            Serial.println("ACK sent"); 
-     // }
+        if (_debug)
+      {          
+                 Serial.println("ACK sent"); 
+      }
     }
    }
 
@@ -151,14 +151,7 @@ public:
            canMsg.can_id = _reg1;
             canMsg.can_dlc = 1;
             canMsg.data[0] = data;
-        
-          //   int tempInt = (canMsg.data[data]);
-
-           //  value.valS = tempInt;
-          
-            //  int x = canMsg.data[data];
-
-             //  bool messageSent = false;
+  
 
                mcp2515.sendMessage(&canMsg);     //Sends the CAN message
 
