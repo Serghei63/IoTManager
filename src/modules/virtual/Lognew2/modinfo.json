@@ -1,0 +1,71 @@
+{
+    "menuSection": "virtual_elements",
+    "configItem": [
+        {
+            "global": 0,
+            "name": "График двойной (линия)",
+            "type": "line",
+            "subtype": "Lognew2",
+            "id": "logn2",
+            "widget": "chart",
+            "page": "Графики",
+            "descr": "Датчики",
+            "num": 1,
+            "int": 1,
+            "lognid1": "t",
+			"lognid2": "h",
+            "points": 300,
+            "label1": "Temp, С",
+            "label2": "Hum, %",
+            "daysSave": 5,
+            "daysShow": 0
+        },
+        {
+            "global": 0,
+            "name": "График двойной (столбики)",
+            "type": "bar",
+            "subtype": "Lognew2",
+            "id": "logn2",
+            "widget": "chart",
+            "page": "Графики",
+            "descr": "Датчики",
+            "num": 1,
+            "int": 1,
+            "lognid1": "t",
+			"lognid2": "h",
+            "points": 300,
+            "label1": "T, С",
+            "label2": "H, %",
+            "daysSave": 5,
+            "daysShow": 0
+        }
+    ],
+    "about": {
+        "authorName": "Serghei Crasnicov",
+        "authorContact": "https://t.me/Serghei63",
+        "authorGit": "https://github.com/Serghei63",
+        "specialThanks": "@itsid1 @Valiuhaaa Serg",
+        "moduleName": "Lognew2",
+        "moduleVersion": "2.0",
+        "usedRam": {
+            "esp32_4mb": 15,
+            "esp8266_4mb": 15
+        },
+        "title": "Логирование в график двух переменных",
+        "moduleDesc": "Расширение позволяющее логировать любую величину в график линейный или столбик",
+        "propInfo": {
+            "int": "Интервал логирования в минутах, рекомендуется для esp8266 использоать интервал не менее 5-ти минут",
+            "logid1": "ID 1 величины которую будем логировать (температура)",
+            "logid2": "ID 2 величины которую будем логировать (влажность)",
+            "points": "Максимальное количество точек в одном файле, может быть не более 300. Не рекомендуется менять этот параметр",
+            "label1": "T, С  Подпись логируемой величины у графика 1",
+            "label2": "H, %  Подпись логируемой величины у графика 2"
+        }
+    },
+    "defActive": false,
+    "usedLibs": {
+        "esp32*": [],
+        "esp82*": []
+
+    }
+}
