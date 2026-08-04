@@ -7,13 +7,13 @@
             "type": "Reading",
             "subtype": "Radio1334",
             "id": "radio",
-            "widget": "",
+            "needSave": 1,
+            "widget": "anydataDef",
             "page": "Radio",
-            "descr": "",
+            "descr": "Radio",
             "int": 1,
-            "pins": "18,19,21",
-            "volume": 70,
-            "url": "http://pub0201.101.ru:8000/stream/pro/aac/64/192"
+            "pins": "18,19,21"
+            
         }
     ],
     "about": {

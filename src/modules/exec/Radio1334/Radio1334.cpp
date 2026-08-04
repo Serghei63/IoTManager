@@ -16,14 +16,14 @@
 
 class Radio1334 : public IoTItem {
 private:
-    // Новые пины по умолчанию: WSEL -> 18, DIN -> 19, BCLK -> 21
+    // Пины по умолчанию: WSEL -> 18, DIN -> 19, BCLK -> 21
     int _wclk = 18; // WSEL / WS
     int _dout = 19; // DIN / DOUT
     int _bclk = 21; // BCLK / BCK
     
     int _volume = 70; // 0..100%
     String _url = "";
-    String _stationName = "Radio"; 
+    String _stationName = "Stopped"; 
     
     // Компоненты ESP8266Audio
     AudioFileSourceHTTPStream* _file    = nullptr;
@@ -37,8 +37,6 @@ public:
     bool _isPlaying = false;
     bool _needsConnect = false;
     bool _needsStop = false;
-    bool _firstConnectAttempt = false;
-    unsigned long _wifiReadyTime = 0;
 
     // Фоновый таск FreeRTOS на Core 0
     static void radioWorker(void* pvParameters) {
@@ -53,19 +51,18 @@ public:
                 instance->_needsConnect = false;
                 instance->stopAudioPipeline(); // Чистим старый поток перед запуском
 
-                vTaskDelay(pdMS_TO_TICKS(150)); // Небольшая пауза для дефрагментации Heap
+                vTaskDelay(pdMS_TO_TICKS(150)); // Пауза для дефрагментации Heap
 
                 Serial.printf("[UDA1334 Task] Connecting to: %s\n", instance->_url.c_str());
                 
-                // Создаем чистый HTTP-поток без перехватчиков метаданных
                 instance->_file = new AudioFileSourceHTTPStream(instance->_url.c_str());
 
-                // Буфер 256 KB в RAM/PSRAM для защиты от заиканий
+                // Буфер 256 KB в RAM/PSRAM
                 instance->_buff = new AudioFileSourceBuffer(instance->_file, 262144);
                 
                 instance->_out = new AudioOutputI2S();
                 
-                // Порядок вызова SetPinout у библиотеки строго: (BCLK, WCLK, DOUT)
+                // Порядок вызова SetPinout: (BCLK, WCLK, DOUT)
                 instance->_out->SetPinout(instance->_bclk, instance->_wclk, instance->_dout);
                 
                 float gain = (float)instance->_volume / 100.0f;
@@ -151,29 +148,18 @@ public:
         String pins;
         jsonRead(parameters, "pins", pins);
         
-        // Согласно твоему порядку в modinfo: WSEL (0), DIN (1), BCLK (2)
+        // Согласно порядку в modinfo: WSEL (0), DIN (1), BCLK (2)
         _wclk = selectFromMarkerToMarker(pins, ",", 0).toInt();
         _dout = selectFromMarkerToMarker(pins, ",", 1).toInt();
         _bclk = selectFromMarkerToMarker(pins, ",", 2).toInt();
 
-        // Устанавливаем новые дефолтные значения, если пины не переписаны в конфиге
+        // Дефолтные значения пинов
         if (_wclk == 0) { _wclk = 18; }
         if (_dout == 0) { _dout = 19; }
         if (_bclk == 0) { _bclk = 21; }
 
+        // Считываем только начальную громкость из параметров
         jsonRead(parameters, "volume", _volume);
-        jsonRead(parameters, "url", _url);
-
-        String stationTmp = "";
-        if (jsonRead(parameters, "station", stationTmp)) {
-            if (stationTmp != "") _stationName = stationTmp;
-        } else if (jsonRead(parameters, "name", stationTmp)) {
-            _stationName = stationTmp;
-        }
-
-        if (_url != "") {
-            _firstConnectAttempt = true;
-        }
 
         xTaskCreatePinnedToCore(
             Radio1334::radioWorker,
@@ -197,22 +183,6 @@ public:
     }
 
     void loop() override {
-        // Автостарт потока при первом подключении к сети
-        if (_firstConnectAttempt && WiFi.status() == WL_CONNECTED && WiFi.localIP()[0] != 0) {
-            _firstConnectAttempt = false;
-            _wifiReadyTime = millis();
-        }
-
-        if (_wifiReadyTime > 0 && (millis() - _wifiReadyTime > 5000)) {
-            _wifiReadyTime = 0;
-            _needsConnect = true;
-            
-            // Отправляем название станции и громкость при автостарте
-            regEvent(_stationName, "title");
-            regEvent(_stationName, "track");
-            regEvent(String(_volume), "volume");
-        }
-
         IoTItem::loop();
     }
 
@@ -247,7 +217,7 @@ public:
 
             if (_url != "") {
                 _needsConnect = true;
-                // Сразу устанавливаем понятное имя станции во все текстовые виджеты
+                // Обновляем веб-интерфейс строго именем станции
                 regEvent(_stationName, "title");
                 regEvent(_stationName, "track");
             }
@@ -266,11 +236,11 @@ public:
 
                 if (_volume != newVol) {
                     _volume = newVol;
+                    // Просто тихо меняем Gain на лету без вызова regEvent!
                     if (_out) {
                         float gain = (float)_volume / 100.0f;
                         _out->SetGain(gain);
                     }
-                    regEvent(String(_volume), "volume");
                 }
             }
         }
