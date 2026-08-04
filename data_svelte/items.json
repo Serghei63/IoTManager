@@ -24,23 +24,7 @@
     },
     {
         "global": 0,
-        "name": "2. Логирование в Svg на SD карту",
-        "type": "Writing",
-        "subtype": "LogSd",
-        "id": "log_svg_1",
-        "widget": "",
-        "page": "",
-        "descr": "",
-        "num": 2,
-        "int": 1,
-        "ids": "v1,v2,v3",
-        "points": 300,
-        "path": "/lg/day_log.txt",
-        "moduleName": "LogSd"
-    },
-    {
-        "global": 0,
-        "name": "3. Таймер",
+        "name": "2. Таймер",
         "type": "Writing",
         "subtype": "Timer",
         "id": "timer",
@@ -52,12 +36,12 @@
         "ticker": 1,
         "repeat": 1,
         "needSave": 0,
-        "num": 3,
+        "num": 2,
         "moduleName": "Timer"
     },
     {
         "global": 0,
-        "name": "4. Свой сервер обновлений",
+        "name": "3. Свой сервер обновлений",
         "type": "Reading",
         "subtype": "UpdateServer",
         "id": "UpdateServer",
@@ -67,12 +51,12 @@
         "btn-startUpdateAll": "http://192.168.11.112/iotm/esp8266_4mb/400",
         "btn-startUpdateFS": "http://192.168.11.112/iotm/esp8266_4mb/400",
         "btn-startUpdateFW": "http://192.168.11.112/iotm/esp8266_4mb/400",
-        "num": 4,
+        "num": 3,
         "moduleName": "UpdateServer"
     },
     {
         "global": 0,
-        "name": "5. Окно ввода числа (переменная)",
+        "name": "4. Окно ввода числа (переменная)",
         "type": "Reading",
         "subtype": "Variable",
         "id": "value",
@@ -86,12 +70,12 @@
         "plus": 0,
         "multiply": 1,
         "round": 0,
-        "num": 5,
+        "num": 4,
         "moduleName": "Variable"
     },
     {
         "global": 0,
-        "name": "6. Окно ввода времени",
+        "name": "5. Окно ввода времени",
         "type": "Reading",
         "subtype": "Variable",
         "id": "time",
@@ -101,12 +85,12 @@
         "descr": "Введите время",
         "int": "0",
         "val": "02:00",
-        "num": 6,
+        "num": 5,
         "moduleName": "Variable"
     },
     {
         "global": 0,
-        "name": "7. Окно ввода даты",
+        "name": "6. Окно ввода даты",
         "type": "Reading",
         "subtype": "Variable",
         "id": "time",
@@ -116,12 +100,12 @@
         "descr": "Введите дату",
         "int": "0",
         "val": "24.05.2022",
-        "num": 7,
+        "num": 6,
         "moduleName": "Variable"
     },
     {
         "global": 0,
-        "name": "8. Окно ввода текста",
+        "name": "7. Окно ввода текста",
         "type": "Reading",
         "subtype": "Variable",
         "id": "txt",
@@ -131,12 +115,12 @@
         "descr": "Введите текст",
         "int": "0",
         "val": "текст",
-        "num": 8,
+        "num": 7,
         "moduleName": "Variable"
     },
     {
         "global": 0,
-        "name": "9. Вывод значения",
+        "name": "8. Вывод значения",
         "type": "Reading",
         "subtype": "Variable",
         "id": "vout",
@@ -150,12 +134,12 @@
         "plus": 0,
         "multiply": 1,
         "round": 0,
-        "num": 9,
+        "num": 8,
         "moduleName": "Variable"
     },
     {
         "global": 0,
-        "name": "10. Виртуальная кнопка",
+        "name": "9. Виртуальная кнопка",
         "type": "Reading",
         "subtype": "VButton",
         "id": "vbtn",
@@ -165,7 +149,7 @@
         "descr": "Кнопка",
         "int": "0",
         "val": "0",
-        "num": 10,
+        "num": 9,
         "moduleName": "VButton"
     },
     {
@@ -176,7 +160,7 @@
     },
     {
         "global": 0,
-        "name": "11. Кнопка подключенная к пину",
+        "name": "10. Кнопка подключенная к пину",
         "type": "Writing",
         "subtype": "ButtonIn",
         "id": "btn",
@@ -191,12 +175,12 @@
         "debounceDelay": 50,
         "fixState": 0,
         "inv": 0,
-        "num": 11,
+        "num": 10,
         "moduleName": "ButtonIn"
     },
     {
         "global": 0,
-        "name": "12. Управление пином",
+        "name": "11. Управление пином",
         "type": "Writing",
         "subtype": "ButtonOut",
         "needSave": 0,
@@ -207,25 +191,27 @@
         "int": 0,
         "inv": 0,
         "pin": 2,
-        "num": 12,
+        "num": 11,
         "moduleName": "ButtonOut"
     },
     {
         "global": 0,
-        "name": "13. SD карта",
-        "type": "Writing",
-        "subtype": "SDcard",
-        "id": "sd",
-        "widget": "",
-        "page": "",
-        "descr": "",
+        "name": "12. I2S Radio",
+        "type": "Reading",
+        "subtype": "Radio1334",
+        "id": "radio",
+        "needSave": 1,
+        "widget": "anydataDef",
+        "page": "Radio",
+        "descr": "Radio",
         "int": 1,
-        "num": 13,
-        "moduleName": "SDcard"
+        "pins": "18,19,21",
+        "num": 12,
+        "moduleName": "Radio1334"
     },
     {
         "global": 0,
-        "name": "14. Телеграм-Лайт",
+        "name": "13. Телеграм-Лайт",
         "type": "Writing",
         "subtype": "TelegramLT",
         "id": "tg",
@@ -234,11 +220,8 @@
         "descr": "",
         "token": "",
         "chatID": "",
-        "num": 14,
+        "num": 13,
         "moduleName": "TelegramLT"
-    },
-    {
-        "header": "Экраны"
     },
     {
         "header": "screens"

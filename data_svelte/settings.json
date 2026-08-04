@@ -1,6 +1,6 @@
 {
-    "name": "IoTmanagerVer4",
-    "apssid": "IoTmanager",
+    "name": "ESP_radio",
+    "apssid": "ESP_radio",
     "appass": "",
     "routerssid": "mega",
     "routerpass": "11111111",

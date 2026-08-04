@@ -1,7 +1,7 @@
 {
     "projectProp": {
         "platformio": {
-            "default_envs": "esp32s3_n16r8"
+            "default_envs": "esp32_4mb3f"
         }
     },
     "modules": {
@@ -48,7 +48,7 @@
             },
             {
                 "path": "src/modules/virtual/LogSd",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/virtual/LogTxt",
@@ -424,11 +424,11 @@
             },
             {
                 "path": "src/modules/exec/Radio1334",
-                "active": false
+                "active": true
             },
             {
                 "path": "src/modules/exec/SDcard",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/exec/SIM800",
@@ -468,12 +468,6 @@
             },
             {
                 "path": "src/modules/sensors/Ds2423",
-                "active": false
-            }
-        ],
-        "Экраны": [
-            {
-                "path": "src/modules/display/St7789",
                 "active": false
             }
         ],
