@@ -7,11 +7,11 @@
             "type": "Reading",
             "subtype": "Mp3",
             "id": "mp3",
-            "widget": "",
-            "page": "",
-            "descr": "",
+            "widget": "anydataDef",
+            "page": "Магнитофон",
+            "descr": "Status",
             "int": 1,
-            "pins": "14,12",
+            "pins": "26,25",
             "volume": 20
         }
     ],
