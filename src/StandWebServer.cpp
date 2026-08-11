@@ -263,6 +263,43 @@ void standWebServerInit() {
     //     HTTP.send(200, "text/plain", "ok");
     // });
 
+// 1. Заглушка для email (обрабатывает и GET/POST, и Preflight OPTIONS)
+    HTTP.on("/email", HTTP_ANY, []() {
+        HTTP.sendHeader("Access-Control-Allow-Origin", "*");
+        HTTP.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        HTTP.sendHeader("Access-Control-Allow-Headers", "*");
+        if (HTTP.method() == HTTP_OPTIONS) {
+            HTTP.send(204); // Instant response for preflight
+        } else {
+            HTTP.send(200, "application/json", "{\"status\":\"disabled\"}");
+        }
+    });
+
+    // 2. Ответ для /get (чтобы Svelte получал статус 200 OK)
+    HTTP.on("/get", HTTP_ANY, []() {
+        HTTP.sendHeader("Access-Control-Allow-Origin", "*");
+        HTTP.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        HTTP.sendHeader("Access-Control-Allow-Headers", "*");
+        if (HTTP.method() == HTTP_OPTIONS) {
+            HTTP.send(204);
+        } else {
+            HTTP.send(200, "text/plain", "OK");
+        }
+    });
+
+    // Мгновенный гаситель Preflight OPTIONS и мёртвого /email
+HTTP.on("/email", HTTP_ANY, []() {
+    HTTP.sendHeader("Access-Control-Allow-Origin", "*");
+    HTTP.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    HTTP.sendHeader("Access-Control-Allow-Headers", "*");
+    
+    if (HTTP.method() == HTTP_OPTIONS) {
+        HTTP.send(204); // Мгновенный отклик для браузера
+    } else {
+        HTTP.send(200, "application/json", "{\"status\":\"disabled\"}");
+    }
+});
+
     HTTP.on("/set", HTTP_GET, []() {
         // Check for existing session first
         if (!checkBasicAuth()) {

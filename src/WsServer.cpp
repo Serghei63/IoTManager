@@ -37,7 +37,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
             }
             standWebSocket.disconnect(num);
         } break;
-
+/*
         case WStype_CONNECTED: {
             // IPAddress ip = standWebSocket.remoteIP(num);
             SerialPrint("i", "WS " + String(num), "WS client connected");
@@ -57,7 +57,28 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
             // ip[1], ip[2], ip[3], payload); standWebSocket.sendTXT(num,
             // "Connected");
         } break;
-
+*/
+case WStype_CONNECTED: {
+            SerialPrint("i", "WS " + String(num), "WS client connected");
+            
+            // 1. Сразу легализуем клиента для таски в main.cpp
+            if (num < WEBSOCKETS_CLIENT_MAX) {
+                ws_clients[num] = 1; 
+                wsClientAuthenticated[num] = false;
+            }
+            
+            // 2. Если клиентов слишком много, мягко кикаем ТОЛЬКО ЛИШНЕГО
+            if (num >= 3) {
+                SerialPrint("E", "WS", "Too many clients, connection closed!!!");
+                jsonWriteInt(errorsHeapJson, "wse1", 1);
+                
+                // Сбрасываем только этот конкретный номер, не трогая остальных!
+                standWebSocket.disconnect(num); 
+                if (num < WEBSOCKETS_CLIENT_MAX) {
+                    ws_clients[num] = -1;
+                }
+            }
+        } break;
         case WStype_TEXT: {
             bool endOfHeaderFound = false;
             size_t maxAllowedHeaderSize = 15;  // максимальное количество символов заголовка
