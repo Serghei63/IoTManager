@@ -93,10 +93,10 @@ if (!myMP3) return;
         String statusStr = "";
 
         if (_lastState == 1 || _lastState == 513) {
-            statusStr = "Playing #" + String(_currentTrack > 0 ? _currentTrack : 1);
+            statusStr = "Playing N" + String(_currentTrack > 0 ? _currentTrack : 1);
         } 
         else if (_lastState == 2 || _lastState == 514) {
-            statusStr = "Paused #" + String(_currentTrack > 0 ? _currentTrack : 1);
+            statusStr = "Paused N" + String(_currentTrack > 0 ? _currentTrack : 1);
         }
         else if (_lastState == 0 || _lastState == 512) {
             statusStr = F("Stopped");
@@ -111,7 +111,159 @@ if (!myMP3) return;
         regEvent(value.valS, F("Mp3"));
     }
     }
+    IoTValue execute(String command, std::vector<IoTValue> &param) override {
+        if (!myMP3) {
+            SerialPrint("E", "MP3", "Error: myMP3 is null!");
+            return {};
+        }
 
+        // Принудительно обновим статус в веб-интерфейсе на следующем цикле
+        _lastState = -1; 
+
+        // === ГРУППА 1: УПРАВЛЕНИЕ ВОСПРОИЗВЕДЕНИЕМ ===
+        if (command == F("playAll")) {
+            myMP3->play(1);
+            delay(40);
+            myMP3->enableLoopAll();
+            SerialPrint("I", "MP3", "playAll() executed");
+        } 
+        else if (command == F("stop")) { 
+            myMP3->stop();
+            SerialPrint("I", "MP3", "stop() executed");
+        } 
+        else if (command == F("pause")) { 
+            myMP3->pause();
+            SerialPrint("I", "MP3", "pause() executed");
+        } 
+        else if (command == F("continue") || command == F("start")) { 
+            myMP3->start();
+            SerialPrint("I", "MP3", "start() executed");
+        } 
+        else if (command == F("next")) { 
+            myMP3->next();  
+            SerialPrint("I", "MP3", "next() executed");
+        } 
+        else if (command == F("previous")) { 
+            myMP3->previous();  
+            SerialPrint("I", "MP3", "previous() executed");
+        }
+        else if (command == F("randomAll")) { 
+            myMP3->randomAll();
+            SerialPrint("I", "MP3", "randomAll() executed");
+        } 
+        else if (command == F("reset")) {
+            myMP3->reset();
+            SerialPrint("I", "MP3", "reset() triggered");
+        }
+        else if (command == F("sleep")) {
+            myMP3->sleep();
+            SerialPrint("I", "MP3", "sleep() triggered");
+        }
+
+        // === ГРУППА 2: НАСТРОЙКА ЗВУКА И ЖЕЛЕЗА ===
+        else if (command == F("volume")) { 
+            if (param.size() >= 1) {
+                int vol = param[0].valD;
+                if (vol < 0) vol = 0;
+                if (vol > 30) vol = 30; // Аппаратный максимум DFPlayer
+                delay(10);
+                myMP3->volume(vol);
+                SerialPrint("I", "MP3", "volume() Set to: " + String(vol));
+            }
+        } 
+        else if (command == F("volumeUp")) {
+            myMP3->volumeUp();
+            SerialPrint("I", "MP3", "volumeUp() executed");
+        }
+        else if (command == F("volumeDown")) {
+            myMP3->volumeDown();
+            SerialPrint("I", "MP3", "volumeDown() executed");
+        }
+        else if (command == F("EQ")) {
+            if (param.size() >= 1) {
+                int eq = param[0].valD; // 0 - Normal, 1 - Pop, 2 - Rock, 3 - Jazz, 4 - Classic, 5 - Bass
+                myMP3->EQ(eq);
+                SerialPrint("I", "MP3", "EQ set to: " + String(eq));
+            }
+        }
+
+        // === ГРУППА 3: САМАЯ ГЛАВНАЯ (РАБОТА С ПАПКАМИ И ИНТЕРВАЛАМИ) ===
+        // Выбор конкретной папки и файла (Папки должны называться "01", "02" и т.д.)
+        else if (command == F("playFolder")) { 
+            if (param.size() >= 2) {
+                int folder = param[0].valD;
+                int file = param[1].valD;
+                myMP3->playFolder(folder, file);
+                SerialPrint("I", "MP3", "playFolder() Folder: " + String(folder) + ", File: " + String(file));
+            }
+        } 
+        // Запуск папки по кругу
+        else if (command == F("loopFolder")) {
+            if (param.size() >= 1) {
+                int folder = param[0].valD;
+                myMP3->loopFolder(folder);
+                SerialPrint("I", "MP3", "loopFolder() Folder: " + String(folder));
+            }
+        }
+        // Воспроизведение файла из специальной папки "MP3" в корне флешки
+        else if (command == F("playMp3Folder")) {
+            if (param.size() >= 1) {
+                int file = param[0].valD;
+                myMP3->playMp3Folder(file);
+                SerialPrint("I", "MP3", "playMp3Folder() File: " + String(file));
+            }
+        }
+        // Идеально для уведомлений! Прерывает текущую песню, играет файл из папки "ADVERT", а потом продолжает песню с того же места!
+        else if (command == F("advertise")) {
+            if (param.size() >= 1) {
+                int file = param[0].valD;
+                myMP3->advertise(file);
+                SerialPrint("I", "MP3", "advertise() Notification file: " + String(file));
+            }
+        }
+        else if (command == F("stopAdvertise")) {
+            myMP3->stopAdvertise();
+            SerialPrint("I", "MP3", "stopAdvertise() executed");
+        }
+        // Режим зацикливания одного конкретного файла
+        else if (command == F("loop")) {
+            if (param.size() >= 1) {
+                int file = param[0].valD;
+                myMP3->loop(file);
+                SerialPrint("I", "MP3", "loop() single file: " + String(file));
+            }
+        }
+
+        // === ГРУППА 4: ИНФОРМАЦИОННЫЕ КОМАНДЫ (ЧТЕНИЕ ИЗ ПЛЕЕРА) ===
+        // Чтение параметров возвращает значение через IoTValue
+        else if (command == F("readVolume")) {
+            int currentVol = myMP3->readVolume();
+            SerialPrint("I", "MP3", "Read volume: " + String(currentVol));
+            return {};
+        }
+        else if (command == F("readState")) {
+            int state = myMP3->readState(); // 512 - стоп, 513 - играет, 514 - пауза
+            return {};
+        }
+        else if (command == F("readFileCountsInFolder")) {
+            if (param.size() >= 1) {
+                int folder = param[0].valD;
+                int counts = myMP3->readFileCountsInFolder(folder);
+                return {};
+            }
+        }
+        else if (command == F("readFileCounts")) {
+            int counts = myMP3->readFileCounts();
+            return {};
+        }
+        else if (command == F("readCurrentFileNumber")) {
+            int num = myMP3->readCurrentFileNumber();
+            return {};
+        }
+
+        return {};  
+    }
+/*
     IoTValue execute(String command, std::vector<IoTValue> &param) override {
         if (!myMP3) {
             SerialPrint("E", "MP3", "Error: myMP3 is null!");
@@ -174,7 +326,7 @@ if (!myMP3) return;
 
         return {};  
     }
-
+*/
     ~Mp3() {};
 };
 
