@@ -1,0 +1,48 @@
+{
+    "menuSection": "executive_devices",
+    "configItem": [
+        {
+            "global": 0,
+            "name": "Акселерометр Mpu6050",
+            "type": "Reading",
+            "subtype": "MpuCube",
+            "id": "mpu",
+            "widget": "anydataDef",
+            "page": "Аксель",
+            "descr": "Значение",
+            "pin": 5,
+            "thr": 65,
+            "addr": "0x68",
+            "debug": 0
+        }
+    ],
+    "about": {
+        "authorName": "Serghei Crasnicov",
+        "authorContact": "",
+        "authorGit": "",
+        "specialThanks": "AI Gemini",
+        "moduleName": "Mpu6050",
+        "moduleVersion": "0.0",
+        "usedRam": {
+            "esp32_4mb": 15,
+            "esp8266_4mb": 15
+        },
+        "title": "Акселерометр Mpu6050",
+        "moduleDesc": "Модуль для работы с акселерометром Mpu6050",
+        "propInfo": {
+            "addr": "Адрес устройства на шине, обычно 0x68",
+            "pin": "GPIO INT по маркировке платы, к которому подключен акселерометр (по умолчанию: 5)",
+            "thr": "Порог срабатывания акселерометра. Чем меньше значение, тем чувствительнее акселерометр. Значение в диапазоне 0-255",
+            "debug": "Включить вывод в Serial отладочную информацию (0 - выключить, 1 - включить)"
+        }
+    },
+    "defActive": false,
+    "usedLibs": {
+        "esp32*": [
+            
+        ],
+        "esp82*": [
+            
+        ]
+    }
+}
