@@ -1,0 +1,46 @@
+{
+    "menuSection": "executive_devices",
+    "configItem": [
+        {
+            "global": 0,
+            "name": "Датчик жестов APDS9960",
+            "type": "Reading",
+            "subtype": "ApdsGesture",
+            "id": "apds",
+            "widget": "anydataDef",
+            "page": "Жест",
+            "descr": "Значение",
+            "pin": 5,
+            "addr": "0x39",
+            "debug": 1
+        }
+    ],
+    "about": {
+        "authorName": "Serghei Crasnicov",
+        "authorContact": "",
+        "authorGit": "",
+        "specialThanks": "AI Gemini",
+        "moduleName": "Apds9960",
+        "moduleVersion": "0.0",
+        "usedRam": {
+            "esp32_4mb": 15,
+            "esp8266_4mb": 15
+        },
+        "title": "Датчик жестов APDS9960",
+        "moduleDesc": "Модуль для работы с датчиком жестов APDS9960 на прерываниях. Возвращает числовой код жеста в значение элемента: 1 - Вверх (UP), 2 - Вниз (DOWN), 3 - Влево (LEFT), 4 - Вправо (RIGHT)",
+        "propInfo": {
+            "addr": "Адрес устройства на шине, обычно 0x39",
+            "pin": "GPIO INT по маркировке платы, к которому подключен датчик жестов (по умолчанию: 5)",
+            "debug": "Включить вывод в Serial отладочную информацию (0 - выключить, 1 - включить)"
+        }
+    },
+    "defActive": false,
+    "usedLibs": {
+        "esp32*": [
+            "adafruit/Adafruit APDS9960 Library"
+        ],
+        "esp82*": [
+            "adafruit/Adafruit APDS9960 Library"
+        ]
+    }
+}
