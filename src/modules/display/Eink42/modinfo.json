@@ -1,0 +1,63 @@
+{
+    "menuSection": "screens",
+    "configItem": [
+        {
+            "name": "Экран Eink42",
+            "type": "Reading",
+            "subtype": "Eink42",
+            "id": "eink",
+            "widget": "anydataDef",
+            "page": "Экран",
+            "descr": "Состояние",
+            "cs": 21,
+            "dc": 17,
+            "rst": 16,
+            "busy": 22,
+            "rotation": 0,
+            "debug": 1
+        }
+    ],
+    "about": {
+        "authorName": "Serghei Crasnicov",
+        "authorContact": "",
+        "authorGit": "",
+        "specialThanks": "AI Gemini",
+        "moduleName": "Eink42",
+        "moduleVersion": "1.0",
+        "usedRam": {
+            "esp32_4mb": 20,
+            "esp8266_4mb": 20
+        },
+        "title": "Дисплей E-Ink 4.2 (Eink42)",
+        "moduleDesc": "Модуль для вывода информации на черно-белый e-ink дисплей 4.2 дюйма (400x300). Управляется полностью через сценарии автоматизации.",
+        "propInfo": {
+            "cs": "Пин SPI Chip Select (CS)",
+            "dc": "Пин Data/Command (DC)",
+            "rst": "Пин Reset (RST)",
+            "busy": "Пин Busy (BUSY)",
+            "rotation": "Поворот экрана (0, 1, 2, 3)",
+            "debug": "Включить логи отладки (0/1)"
+        },
+        "funcInfo": [
+            {
+                "name": "showMsg",
+                "descr": "Вывести текст на экран с возможностью выбора масштаба шрифта",
+                "params": ["Текст сообщения", "Размер шрифта (1, 2, 3...) (необяз.)"]
+            },
+            {
+                "name": "showImage",
+                "descr": "Отобразить массив картинки по её номеру",
+                "params": ["Номер картинки (1-4)"]
+            }
+        ]
+    },
+    "defActive": false,
+    "usedLibs": {
+        "esp32*": [
+            "zinggjm/GxEPD2 @ ^1.5.9"
+        ],
+        "esp82*": [
+            "zinggjm/GxEPD2 @ ^1.5.9"
+        ]
+    }
+}
