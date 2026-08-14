@@ -40,9 +40,18 @@
         },
         "funcInfo": [
             {
-                "name": "showMsg",
-                "descr": "Вывести текст на экран с возможностью выбора масштаба шрифта",
-                "params": ["Текст сообщения", "Размер шрифта (1, 2, 3...) (необяз.)"]
+                "name": "fullRefresh",
+                "descr": "Полная перерисовка экрана (медленно, но без артефактов)"
+            },
+            {
+                "name": "setRotation",
+                "descr": "Установить угол поворота экрана",
+                "params": ["Угол поворота (0, 1, 2, 3)"]
+            },
+            {
+                "name": "updateData",
+                "descr": "Вывод текста/чисел на экран с заданными параметрами",
+                "params": ["text, x, y, font(1..3), align(0-left, 1-center, 2-right), format(0-as is, 1-pad spaces, 2-pad zeros), decimals(0..3)"]
             },
             {
                 "name": "showImage",
