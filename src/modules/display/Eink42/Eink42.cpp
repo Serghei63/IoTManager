@@ -1,6 +1,7 @@
 #include "Global.h"
 #include "classes/IoTItem.h"
 #include <GxEPD2_BW.h>
+#include <LittleFS.h>
 
 // Подключаем шрифты Adafruit GFX
 #include <Fonts/FreeSansBold24pt7b.h>
@@ -18,23 +19,33 @@ class Eink42 : public IoTItem {
     bool _debug;
     bool _isFirstRun = true;
 
-    // Вспомогательная функция форматирования численных значений (DWIN-style)
+    // Чтение 16-битных и 32-битных значений из заголовка BMP
+    uint16_t read16(File &f) {
+        uint16_t result;
+        f.read((uint8_t*)&result, sizeof(result));
+        return result;
+    }
+
+    uint32_t read32(File &f) {
+        uint32_t result;
+        f.read((uint8_t*)&result, sizeof(result));
+        return result;
+    }
+
+    // Вспомогательная функция форматирования численных значений
     String formatString(String text, uint8_t formatType, uint8_t decimals) {
-        // Если пришел не float (например, обычный текст или время "10:20"), возвращаем как есть
         if (formatType == 0 || text.length() == 0) return text;
 
         char* endptr;
         float val = strtof(text.c_str(), &endptr);
         if (*endptr != '\0' && endptr == text.c_str()) {
-            return text; // Строку не удалось распарсить как число
+            return text;
         }
 
         char buf[32];
         if (formatType == 1) { 
-            // Формат 1: Выравнивание пробелами спереди (для датчиков, чтоб запятая не прыгала)
             snprintf(buf, sizeof(buf), "%*.*f", 6, decimals, val);
         } else if (formatType == 2) { 
-            // Формат 2: Ведущие нули (для счетчиков газа/воды, например: 0003.40)
             snprintf(buf, sizeof(buf), "%0*.*f", 7, decimals, val);
         } else {
             snprintf(buf, sizeof(buf), "%.*f", decimals, val);
@@ -52,19 +63,17 @@ class Eink42 : public IoTItem {
         jsonRead(parameters, "debug", _debug);
     }
 
-    // Изменение ориентации дисплея (0..3)
     void setRotationAngle(uint8_t rotation) {
         if (!display) return;
         uint8_t newRot = rotation % 4;
         if (_rotation != newRot) {
             _rotation = newRot;
             display->setRotation(_rotation);
-            forceFullRefresh(); // Полный рефреш обязателен при смене сетки координат!
+            forceFullRefresh();
             if (_debug) Serial.printf("[E-Ink] Rotation set to: %d\n", _rotation);
         }
     }
 
-    // Полный рефреш (ночная очистка матрицы)
     void forceFullRefresh() {
         if (!display) return;
         if (_debug) Serial.println(F("[E-Ink] Performing full refresh..."));
@@ -76,41 +85,109 @@ class Eink42 : public IoTItem {
         } while (display->nextPage());
     }
 
-    // Основная функция вывода данных с выравниванием и выбором шрифта
+    // Отрисовка 1-bit BMP из LittleFS
+    void drawBmp(String filename, int16_t x, int16_t y) {
+        if (!display) return;
+
+        if (!filename.startsWith("/")) {
+            filename = "/" + filename;
+        }
+
+        if (!LittleFS.exists(filename)) {
+            if (_debug) Serial.printf("[E-Ink Error] File not found: %s\n", filename.c_str());
+            return;
+        }
+
+        File bmpFile = LittleFS.open(filename, "r");
+        if (!bmpFile) {
+            if (_debug) Serial.printf("[E-Ink Error] Failed to open file: %s\n", filename.c_str());
+            return;
+        }
+
+        // Проверяем сигнатуру BMP ('BM')
+        if (read16(bmpFile) != 0x4D42) {
+            if (_debug) Serial.println(F("[E-Ink Error] Not a valid BMP file!"));
+            bmpFile.close();
+            return;
+        }
+
+        read32(bmpFile); // Prop Size
+        read32(bmpFile); // Reserved
+        uint32_t imageOffset = read32(bmpFile); // Смещение массива пикселей
+        read32(bmpFile); // Header size
+        int32_t bmpWidth = read32(bmpFile);
+        int32_t bmpHeight = read32(bmpFile);
+        uint16_t planes = read16(bmpFile);
+        uint16_t depth = read16(bmpFile);
+
+        // Нам нужен только 1-битный монохромный BMP
+        if (planes != 1 || depth != 1) {
+            if (_debug) Serial.printf("[E-Ink Error] Unsupported BMP format (depth: %d, expected 1-bit)\n", depth);
+            bmpFile.close();
+            return;
+        }
+
+        uint32_t rowSize = ((bmpWidth + 31) / 32) * 4; // Размер строки в байтах (выравнивание по 4 байтам)
+        bool flip = true; // BMP обычно хранятся снизу вверх
+        if (bmpHeight < 0) {
+            bmpHeight = -bmpHeight;
+            flip = false;
+        }
+
+        // Частичное обновление под размер изображения
+        display->setPartialWindow(x, y, bmpWidth, bmpHeight);
+        display->firstPage();
+        do {
+            display->fillRect(x, y, bmpWidth, bmpHeight, GxEPD_WHITE); // Стираем фоновую область
+
+            for (int32_t row = 0; row < bmpHeight; row++) {
+                uint32_t pos;
+                if (flip) {
+                    pos = imageOffset + (bmpHeight - 1 - row) * rowSize;
+                } else {
+                    pos = imageOffset + row * rowSize;
+                }
+                bmpFile.seek(pos);
+
+                uint8_t b = 0;
+                int bitIdx = 0;
+                for (int32_t col = 0; col < bmpWidth; col++) {
+                    if (bitIdx == 0) {
+                        b = bmpFile.read();
+                        bitIdx = 8;
+                    }
+                    bitIdx--;
+
+                    // 1 bit in BMP: 1 = White, 0 = Black
+                    if ((b & (1 << bitIdx)) == 0) {
+                        display->drawPixel(x + col, y + row, GxEPD_BLACK);
+                    }
+                }
+            }
+        } while (display->nextPage());
+
+        bmpFile.close();
+        if (_debug) Serial.printf("[E-Ink] BMP rendered: %s (%dx%d) at (%d,%d)\n", filename.c_str(), bmpWidth, bmpHeight, x, y);
+    }
+
     void updateData(String rawText, int x, int y, uint8_t fontIdx, uint8_t align, uint8_t formatType, uint8_t decimals) {
         if (!display) return;
 
-        // 1. Форматируем входную строку
         String text = formatString(rawText, formatType, decimals);
 
-        // 2. Выбираем шрифт
         switch (fontIdx) {
-            case 1:
-                display->setFont(&FreeSansBold12pt7b); // Средний шрифт
-                break;
-            case 2:
-                display->setFont(&FreeSansBold24pt7b); // Крупный шрифт
-                break;
-            case 3:
-                display->setFont(&Open_Sans_ExtraBold_60); // Огромный шрифт
-                break;
-            case 4:
-                display->setFont(&Open_Sans_ExtraBold_90); // Огромный шрифт
-                break;
-            case 5:
-                display->setFont(&Open_Sans_ExtraBold_120); // Огромный шрифт
-                break;
-            default:
-                display->setFont(nullptr);            // Стандартный системный monospaced
-                break;
+            case 1: display->setFont(&FreeSansBold12pt7b); break;
+            case 2: display->setFont(&FreeSansBold24pt7b); break;
+            case 3: display->setFont(&Open_Sans_ExtraBold_60); break;
+            case 4: display->setFont(&Open_Sans_ExtraBold_90); break;
+            case 5: display->setFont(&Open_Sans_ExtraBold_120); break;
+            default: display->setFont(nullptr); break;
         }
 
-        // 3. Авторасчет точных габаритов текста под выбранный шрифт
         int16_t x1, y1;
         uint16_t w, h;
         display->getTextBounds(text.c_str(), 0, 0, &x1, &y1, &w, &h);
 
-        // 4. Расчет X с учетом выравнивания (0 - Left, 1 - Center, 2 - Right)
         int renderX = x;
         if (align == 1) {
             renderX = x - (w / 2);
@@ -118,22 +195,19 @@ class Eink42 : public IoTItem {
             renderX = x - w;
         }
 
-        // 5. Вычисляем безопасные границы частичной очистки (с запасом в 4px)
         uint16_t pad = 4;
         int winX = (renderX + x1 > pad) ? (renderX + x1 - pad) : 0;
         int winY = (y + y1 > pad) ? (y + y1 - pad) : 0;
         uint16_t winW = w + (pad * 2);
         uint16_t winH = h + (pad * 2);
 
-        // Ограничиваем окно рамками экрана
         if (winX + winW > display->width())  winW = display->width() - winX;
         if (winY + winH > display->height()) winH = display->height() - winY;
 
-        // 6. Быстрый частичный рефреш
         display->setPartialWindow(winX, winY, winW, winH);
         display->firstPage();
         do {
-            display->fillRect(winX, winY, winW, winH, GxEPD_WHITE); // Стираем старое значение
+            display->fillRect(winX, winY, winW, winH, GxEPD_WHITE);
             display->setTextColor(GxEPD_BLACK);
             display->setCursor(renderX, y);
             display->print(text.c_str());
@@ -172,7 +246,6 @@ class Eink42 : public IoTItem {
                 int x = (int)param[1].valD;
                 int y = (int)param[2].valD;
                 
-                // Считываем опциональные параметры (с дефолтными значениями)
                 uint8_t fontIdx = (param.size() >= 4) ? (uint8_t)param[3].valD : 2;
                 uint8_t align   = (param.size() >= 5) ? (uint8_t)param[4].valD : 0;
                 uint8_t format  = (param.size() >= 6) ? (uint8_t)param[5].valD : 0;
@@ -182,6 +255,18 @@ class Eink42 : public IoTItem {
                 
                 value.valS = text;
                 regEvent(value.valS, "EInkUpdate");
+            }
+        }
+        else if (command == "showImage") {
+            if (param.size() >= 1) {
+                String imgPath = param[0].valS;
+                int x = (param.size() >= 2) ? (int)param[1].valD : 0;
+                int y = (param.size() >= 3) ? (int)param[2].valD : 0;
+
+                drawBmp(imgPath, x, y);
+                
+                value.valS = imgPath;
+                regEvent(value.valS, "EInkImage");
             }
         }
 
