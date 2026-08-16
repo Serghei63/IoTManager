@@ -4,11 +4,11 @@
 #include <LittleFS.h>
 
 // Подключаем шрифты Adafruit GFX
-#include <Fonts/FreeSansBold24pt7b.h>
 #include <Fonts/FreeSansBold12pt7b.h>
+#include <Fonts/FreeSansBold24pt7b.h>
+#include <Fonts/Open_Sans_ExtraBold_120.h>
 #include <Fonts/Open_Sans_ExtraBold_60.h>
 #include <Fonts/Open_Sans_ExtraBold_90.h>
-#include <Fonts/Open_Sans_ExtraBold_120.h>
 
 // Единый глобальный указатель на физический дисплей
 GxEPD2_BW<GxEPD2_420, GxEPD2_420::HEIGHT>* display = nullptr;
@@ -34,23 +34,31 @@ class Eink42 : public IoTItem {
 
     // Вспомогательная функция форматирования численных значений
     String formatString(String text, uint8_t formatType, uint8_t decimals) {
-        if (formatType == 0 || text.length() == 0) return text;
+        if (text.length() == 0) return text;
 
+        // Пытаемся распарсить число в начале строки (игнорируя суффиксы " %", " C")
         char* endptr;
         float val = strtof(text.c_str(), &endptr);
-        if (*endptr != '\0' && endptr == text.c_str()) {
+
+        // Если в начале строки вообще нет числа (обычный текст), возвращаем как есть
+        if (endptr == text.c_str()) {
             return text;
         }
 
+        // Запоминаем суффикс (например, " C" или " %")
+        String suffix = String(endptr);
+
         char buf[32];
-        if (formatType == 1) { 
+        if (formatType == 1) {
             snprintf(buf, sizeof(buf), "%*.*f", 6, decimals, val);
-        } else if (formatType == 2) { 
+        } else if (formatType == 2) {
             snprintf(buf, sizeof(buf), "%0*.*f", 7, decimals, val);
         } else {
+            // Обычный вывод с заданным количеством знаков после запятой (decimals)
             snprintf(buf, sizeof(buf), "%.*f", decimals, val);
         }
-        return String(buf);
+
+        return String(buf) + suffix;
     }
 
    public:
@@ -77,7 +85,7 @@ class Eink42 : public IoTItem {
     void forceFullRefresh() {
         if (!display) return;
         if (_debug) Serial.println(F("[E-Ink] Performing full refresh..."));
-        
+
         display->setFullWindow();
         display->firstPage();
         do {
@@ -219,7 +227,7 @@ class Eink42 : public IoTItem {
     void loop() override {
         if (_isFirstRun) {
             _isFirstRun = false;
-            
+
             display = new GxEPD2_BW<GxEPD2_420, GxEPD2_420::HEIGHT>(GxEPD2_420(_cs, _dc, _rst, _busy));
             if (display) {
                 display->init(115200, true, 50, false);
@@ -245,14 +253,14 @@ class Eink42 : public IoTItem {
                 String text = param[0].valS;
                 int x = (int)param[1].valD;
                 int y = (int)param[2].valD;
-                
+
                 uint8_t fontIdx = (param.size() >= 4) ? (uint8_t)param[3].valD : 2;
                 uint8_t align   = (param.size() >= 5) ? (uint8_t)param[4].valD : 0;
                 uint8_t format  = (param.size() >= 6) ? (uint8_t)param[5].valD : 0;
                 uint8_t dec     = (param.size() >= 7) ? (uint8_t)param[6].valD : 2;
 
                 updateData(text, x, y, fontIdx, align, format, dec);
-                
+
                 value.valS = text;
                 regEvent(value.valS, "EInkUpdate");
             }
@@ -264,7 +272,7 @@ class Eink42 : public IoTItem {
                 int y = (param.size() >= 3) ? (int)param[2].valD : 0;
 
                 drawBmp(imgPath, x, y);
-                
+
                 value.valS = imgPath;
                 regEvent(value.valS, "EInkImage");
             }
