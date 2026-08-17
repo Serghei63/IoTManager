@@ -208,7 +208,8 @@ void mqttCallback(char* topic, uint8_t* payload, size_t length) {
 
         // отправка данных графиков - данный код будет оптимизирован после завершения написания приложения с новыми графиками
         for (std::list<IoTItem*>::iterator it = IoTItems.begin(); it != IoTItems.end(); ++it) {
-            if ((*it)->getSubtype() == "Loging" || "LogingDaily") {
+            String subtype = (*it)->getSubtype();
+            if (subtype == "Loging" || subtype == "LogingDaily" || subtype == "LogingHourly" || subtype == "SDLoging") {
                 (*it)->setPublishDestination(TO_MQTT);
                 (*it)->publishValue();
             }
@@ -327,28 +328,52 @@ void publishWidgets() {
     file.close();
 }
 
+#include <SdFat.h>
+extern SdFat sd;
+
 bool publishChartFileToMqtt(String path, String id, int maxCount) {
-    File configFile = FileFS.open(path, FILE_READ);
-    if (!configFile) {
-        SerialPrint("E", F("Loging"), path + " file reading error, json not created, return");
+    String oneSingleJson = "";
+
+    // Проверяем, находится ли файл на SD-карте
+    if (path.startsWith("/lg/")) {
+        FsFile configFile = sd.open(path.c_str(), O_RDONLY);
+        if (!configFile) {
+            SerialPrint("E", F("SDLoging"), path + " file reading error (SD), json not created, return");
+            return false;
+        }
+
+        oneSingleJson.reserve(configFile.fileSize());
+        while (configFile.available()) {
+            oneSingleJson += (char)configFile.read();
+        }
+        configFile.close();
+    } 
+    // Иначе читаем из LittleFS
+    else {
+        File configFile = FileFS.open(path, FILE_READ);
+        if (!configFile) {
+            SerialPrint("E", F("Loging"), path + " file reading error (LittleFS), json not created, return");
+            return false;
+        }
+        oneSingleJson = configFile.readString();
+        configFile.close();
+    }
+
+    if (oneSingleJson == "") {
+        SerialPrint("E", F("Loging"), path + " file is empty");
         return false;
     }
-    String oneSingleJson = configFile.readString();
-    configFile.close();
+
     String topic = mqttRootDevice + "/" + id;
     oneSingleJson = "{\"maxCount\":" + String(maxCount) + ",\"topic\":\"" + topic + "\",\"status\":[" + oneSingleJson + "]}";
+    
     oneSingleJson.replace("},]}", "}]}");
-    SerialPrint("i", "Loging", "json size: " + String(oneSingleJson.length()));
+
+    SerialPrint("i", F("Loging"), "json size: " + String(oneSingleJson.length()));
     publishChartMqtt(id, oneSingleJson);
+
     return true;
 }
-
-// void handleMqttStatus(bool send) {
-//     String stateStr = getStateStr(mqtt.state());
-//     // Serial.println(stateStr);
-//     jsonWriteStr_(errorsHeapJson, F("mqtt"), stateStr);
-//     if (!send) sendStringToWs("errors", errorsHeapJson, -1);
-// }
 
 void handleMqttStatus(bool send, int state) {
     if (state == -1) {
