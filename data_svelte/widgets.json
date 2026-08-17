@@ -410,7 +410,14 @@
         "widget": "anydata",
         "after": "Kg/cm²",
         "icon": "speedometer"
-    },  
+    },
+    {
+        "name": "anydataMin",
+        "label": "минуты",
+        "widget": "anydata",
+        "after": "min",
+        "icon": "speedometer"
+    },    
     {
         "name": "nil",
         "label": "Без виджета"
