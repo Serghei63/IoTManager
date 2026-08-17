@@ -3,76 +3,35 @@
 #include <Wire.h>
 #include <math.h>
 
-// Глобальный флаг для ISR
-volatile bool g_mpuCubeInterrupted = false;
-
-void IRAM_ATTR mpuCubeISR() {
-    g_mpuCubeInterrupted = true;
-}
-
 class MpuCube : public IoTItem {
 private:
-    bool _debug = false; // Теперь управляется из конфига
+    bool _debug = false;
     bool _isFirstRun = true;
     int _lastSide = 0;
+    unsigned long _lastCheck = 0;
     
-    // Переменные сырых данных
     int16_t ax, ay, az;
-
-    // Конфигурируемые из веб-интерфейса параметры
     int _address;       
-    int _interruptPin;  
-    int _motionThr;     
 
-    // Метод инициализации
     bool initMPU() {
         Wire.beginTransmission(_address);
         Wire.write(0x6B); // PWR_MGMT_1
-        Wire.write(0x00); // Пробуждение
+        Wire.write(0x00); // Пробуждаем MPU6050
         if (Wire.endTransmission() != 0) return false;
 
-        // Конфигурация детектора движения
-        Wire.beginTransmission(_address);
-        Wire.write(0x1C); Wire.write(0x01); // HPF
-        Wire.write(0x37); Wire.write(0x00); // Импульсный INT
-        Wire.write(0x38); Wire.write(0x40); // Включаем MOT_EN
-        Wire.write(0x1F); Wire.write(_motionThr); 
-        Wire.write(0x20); Wire.write(40);   
-        Wire.endTransmission();
-
         if (_debug) {
-            Serial.printf("[MPU] Configured at 0x%02X. Interrupt Pin: %d. Motion Thr: %d\n", 
-                          _address, _interruptPin, _motionThr);
+            Serial.printf("[MPU] Successfully initialized at address 0x%02X\n", _address);
         }
         return true;
     }
 
-    // Сброс флага прерывания на чипе
-    void clearMpuInterrupt() {
-        Wire.beginTransmission(_address);
-        Wire.write(0x3A); 
-        Wire.endTransmission(false);
-        Wire.requestFrom((uint8_t)_address, (uint8_t)1);
-        if (Wire.available()) {
-            Wire.read(); 
-        }
-    }
-
-    // Чтение векторов ускорения с реанимацией шины
     bool readAccel() {
         Wire.beginTransmission(_address);
-        Wire.write(0x3B); 
+        Wire.write(0x3B); // ACCEL_XOUT_H
         
-        if (Wire.endTransmission(false) != 0) {
-            if (_debug) Serial.println(F("[MPU Error] I2C Bus Crash detected! Resetting Wire..."));
-            
-            Wire.endTransmission(true); 
-            Wire.begin();               
-            
-            Wire.beginTransmission(_address);
-            Wire.write(0x6B); Wire.write(0x00); 
-            Wire.endTransmission();
-            
+        if (Wire.endTransmission(true) != 0) {
+            if (_debug) Serial.println(F("[MPU Error] I2C Bus Fail! Re-initializing MPU..."));
+            initMPU();
             return false; 
         }
         
@@ -87,14 +46,9 @@ private:
         return false;
     }
 
-    // Математический расчет грани (> 45 градусов к горизонту)
     int detectSide() {
         if (!readAccel()) {
             return _lastSide; 
-        }
-
-        if (_debug) {
-            Serial.printf("[MPU Raw] X: %6d | Y: %6d | Z: %6d\n", ax, ay, az);
         }
 
         double x = (double)ax;
@@ -126,44 +80,26 @@ public:
         jsonRead(parameters, F("addr"), addrStr);
         _address = (int)strtol(addrStr.c_str(), NULL, 16);
 
-        long pinValue;
-        jsonRead(parameters, F("pin"), pinValue);
-        _interruptPin = (int)pinValue;
-
-        long thrValue;
-        if (!jsonRead(parameters, F("thr"), thrValue)) {
-            thrValue = 65; 
-        }
-        _motionThr = (int)thrValue;
-
-        // Читаем настройку дебага из веба (0 или 1)
         long dbgValue = 0;
         jsonRead(parameters, F("debug"), dbgValue);
         _debug = (dbgValue == 1);
 
         setInterval(0); 
     }
-    
+
     void doByInterval() override {}
 
     void loop() override {
         if (_isFirstRun) {
             _isFirstRun = false;
             Wire.begin(); 
-            if (initMPU()) {
-                pinMode(_interruptPin, INPUT);
-                // Разделение логики для ESP32 и ESP8266
-                #ifdef ESP32
-                gpio_install_isr_service(0); 
-                #endif
-                attachInterrupt(digitalPinToInterrupt(_interruptPin), mpuCubeISR, FALLING);
-                clearMpuInterrupt();
-            }
+            initMPU();
         }
 
-        if (g_mpuCubeInterrupted) {
-            g_mpuCubeInterrupted = false;
-            clearMpuInterrupt();
+        // Опрос граней каждые 300 миллисекунд
+        if (millis() - _lastCheck > 300) {
+            _lastCheck = millis();
+            
             int activeSide = detectSide();
 
             if (activeSide != _lastSide) {
@@ -171,17 +107,16 @@ public:
                 value.valD = activeSide;
                 
                 if (_debug) {
-                    Serial.printf("[MPU New Side] Target side locked: %d\n", activeSide);
+                    Serial.printf("[MPU Side Changed] New Side: %d\n", activeSide);
                 }
                 
+                // Генерируем событие для автоматизации в IoTmanager
                 regEvent(String(activeSide), "MpuCube");
             }
         }
     }
 
-    ~MpuCube() {
-        detachInterrupt(digitalPinToInterrupt(_interruptPin));
-    }
+    ~MpuCube() {}
 };
 
 void *getAPI_Mpu6050(String subtype, String param) {
@@ -190,7 +125,6 @@ void *getAPI_Mpu6050(String subtype, String param) {
         jsonRead(param, F("addr"), addr);
         
         if (addr == "") {
-            Serial.println(F("[MPU] Address is empty in config! Launching scanI2C()..."));
             scanI2C();
             return nullptr; 
         }
