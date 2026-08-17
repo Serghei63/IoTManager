@@ -79,15 +79,22 @@ public:
             return valTmp;
         }
         // Вставляем внутрь метода execute() класса IoTMath:
-    else if(command == "parseTimeToMinutes" && param.size() == 1) {
+else if (command == "parseTimeToMinutes" && param.size() == 1) {
+        // Если переданное значение уже является числом (например, напрямую из valD элемента Runtime)
+        if (param[0].isDecimal) {
+            return param[0]; 
+        }
+
         String timeStr = param[0].valS;
+        timeStr.trim();
         int colonIdx = timeStr.indexOf(':');
         
         IoTValue valTmp;
         valTmp.isDecimal = true;
         
         if (colonIdx == -1) {
-            valTmp.valD = 0.0;
+            // Если двоеточия нет, попробуем просто перевести строку в float (на случай, если пришло чистое число минут)
+            valTmp.valD = timeStr.toFloat();
         } else {
             int hours = timeStr.substring(0, colonIdx).toInt();
             int minutes = timeStr.substring(colonIdx + 1).toInt();
