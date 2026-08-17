@@ -23,7 +23,7 @@
         "authorGit": "",
         "specialThanks": "AI Gemini",
         "moduleName": "Eink42",
-        "moduleVersion": "1.0",
+        "moduleVersion": "1.1",
         "usedRam": {
             "esp32_4mb": 20,
             "esp8266_4mb": 20
@@ -41,17 +41,37 @@
         "funcInfo": [
             {
                 "name": "fullRefresh",
-                "descr": "Полная перерисовка экрана (медленно, но без артефактов)"
+                "descr": "Полная перерисовка экрана (медленно, но убирает фантомные изображения)"
             },
             {
                 "name": "setRotation",
                 "descr": "Установить угол поворота экрана",
-                "params": ["Угол поворота (0, 1, 2, 3)"]
+                "params": ["rotation (0, 1, 2, 3)"]
             },
             {
                 "name": "updateData",
-                "descr": "Вывод текста/чисел на экран с заданными параметрами",
-                "params": ["text, x, y, font(1..3), align(0-left, 1-center, 2-right), format(0-as is, 1-pad spaces, 2-pad zeros), decimals(0..3)"]
+                "descr": "Вывод текста или числа одной строкой",
+                "params": [
+                    "text",
+                    "x",
+                    "y",
+                    "fontIdx (1-FreeSans12, 2-FreeSans24, 3-OpenSans60, 4-OpenSans90, 5-OpenSans120)",
+                    "align (0-left, 1-center, 2-right)",
+                    "format (0-as is, 1-pad spaces, 2-pad zeros)",
+                    "decimals (0..3)"
+                ]
+            },
+            {
+                "name": "updateSplitValue",
+                "descr": "Вывод числа с разделением: целая часть крупным шрифтом, дробная и суффикс — мелким",
+                "params": [
+                    "text (значение, напр. '23.4 °C')",
+                    "x",
+                    "y",
+                    "fontMain (шрифт целой части 1..5, по ум. 4)",
+                    "fontSub (шрифт дробной части 1..5, по ум. 2)",
+                    "decimals (знаков после запятой, по ум. 1)"
+                ]
             },
             {
                 "name": "showImage",
