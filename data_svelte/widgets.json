@@ -413,7 +413,7 @@
     },
     {
         "name": "anydataMin",
-        "label": "минуты",
+        "label": "Минуты",
         "widget": "anydata",
         "after": "min",
         "icon": "speedometer"
