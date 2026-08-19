@@ -253,24 +253,35 @@ public:
             valTmp.valD = nowInTimePeriod(param[0].valS, param[1].valS); 
             return valTmp;
         }
-        else if (command == "parseTimeToMinutes" && param.size() == 1) {
+else if (command == "parseTimeToMinutes" && param.size() == 1) {
             if (param[0].isDecimal) {
                 return param[0]; 
             }
 
             String timeStr = param[0].valS;
             timeStr.trim();
+            
+            long days = 0;
+            int dayIdx = timeStr.indexOf('d');
+            
+            // Если в строке есть дни (например "1d 02:01" или "2d05:30")
+            if (dayIdx != -1) {
+                days = timeStr.substring(0, dayIdx).toInt();
+                timeStr = timeStr.substring(dayIdx + 1);
+                timeStr.trim();
+            }
+
             int colonIdx = timeStr.indexOf(':');
             
             IoTValue valTmp;
             valTmp.isDecimal = true;
             
             if (colonIdx == -1) {
-                valTmp.valD = timeStr.toFloat();
+                valTmp.valD = timeStr.toFloat() + static_cast<float>(days * 1440);
             } else {
-                int hours = timeStr.substring(0, colonIdx).toInt();
-                int minutes = timeStr.substring(colonIdx + 1).toInt();
-                valTmp.valD = static_cast<float>((hours * 60) + minutes);
+                long hours = timeStr.substring(0, colonIdx).toInt();
+                long minutes = timeStr.substring(colonIdx + 1).toInt();
+                valTmp.valD = static_cast<float>((days * 1440) + (hours * 60) + minutes);
             }
             return valTmp;
         }
