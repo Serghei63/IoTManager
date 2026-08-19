@@ -23,7 +23,7 @@
         "authorGit": "",
         "specialThanks": "AI Gemini",
         "moduleName": "Eink42",
-        "moduleVersion": "1.1",
+        "moduleVersion": "2.0",
         "usedRam": {
             "esp32_4mb": 20,
             "esp8266_4mb": 20
@@ -38,10 +38,10 @@
             "rotation": "Поворот экрана (0, 1, 2, 3)",
             "debug": "Включить логи отладки (0/1)"
         },
-        "funcInfo": [
+"funcInfo": [
             {
                 "name": "fullRefresh",
-                "descr": "Полная перерисовка экрана (медленно, но убирает фантомные изображения)"
+                "descr": "Полная перерисовка экрана (заполнение белым + сброс фантомных изображений)"
             },
             {
                 "name": "setRotation",
@@ -50,13 +50,15 @@
             },
             {
                 "name": "updateData",
-                "descr": "Вывод текста или числа одной строкой",
+                "descr": "Вывод текста или числа в фиксированной прямоугольной области (Bounding Box) с полной зачисткой",
                 "params": [
                     "text",
                     "x",
                     "y",
+                    "w (ширина прямоугольника зачистки/виджета)",
+                    "h (высота прямоугольника зачистки/виджета)",
                     "fontIdx (1-FreeSans12, 2-FreeSans24, 3-OpenSans60, 4-OpenSans90, 5-OpenSans120)",
-                    "align (0-left, 1-center, 2-right)",
+                    "align (0-влево, 1-по центру, 2-вправо внутри области W)",
                     "format (0-as is, 1-pad spaces, 2-pad zeros)",
                     "decimals (0..3)"
                 ]
@@ -75,8 +77,14 @@
             },
             {
                 "name": "showImage",
-                "descr": "Отобразить монохромный 1-bit BMP файл из LittleFS",
-                "params": ["path (путь к файлу, напр. /bg.bmp)", "x", "y"]
+                "descr": "Отобразить 1-bit BMP файл из LittleFS с опциональной зачисткой области",
+                "params": [
+                    "path (путь к файлу, напр. /bg.bmp)", 
+                    "x", 
+                    "y",
+                    "w (ширина очистки, по умолчанию размер BMP)",
+                    "h (высота очистки, по умолчанию размер BMP)"
+                ]
             }
         ]
     },
