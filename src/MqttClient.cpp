@@ -328,38 +328,47 @@ void publishWidgets() {
     file.close();
 }
 
-#include <SdFat.h>
-extern SdFat sd;
+// ------------------ MQTT & Chart Functions ------------------
+
+#ifdef SD_ENABLE
+  #include <SdFat.h>
+  extern SdFat sd;
+#endif
 
 bool publishChartFileToMqtt(String path, String id, int maxCount) {
     String oneSingleJson = "";
+    bool fileReadSuccess = false;
 
-    // Проверяем, находится ли файл на SD-карте
+#ifdef SD_ENABLE
+    // Если поддержка SD включена в сборку и путь ведет на SD
     if (path.startsWith("/lg/")) {
         FsFile configFile = sd.open(path.c_str(), O_RDONLY);
-        if (!configFile) {
+        if (configFile) {
+            oneSingleJson.reserve(configFile.fileSize());
+            while (configFile.available()) {
+                oneSingleJson += (char)configFile.read();
+            }
+            configFile.close();
+            fileReadSuccess = true;
+        } else {
             SerialPrint("E", F("SDLoging"), path + " file reading error (SD), json not created, return");
             return false;
         }
+    }
+#endif
 
-        oneSingleJson.reserve(configFile.fileSize());
-        while (configFile.available()) {
-            oneSingleJson += (char)configFile.read();
-        }
-        configFile.close();
-    } 
-    // Иначе читаем из LittleFS
-    else {
+    // Если SD не используется или путь относится к LittleFS/SPIFFS
+    if (!fileReadSuccess) {
         File configFile = FileFS.open(path, FILE_READ);
         if (!configFile) {
-            SerialPrint("E", F("Loging"), path + " file reading error (LittleFS), json not created, return");
+            SerialPrint("E", F("Loging"), path + " file reading error (FS), json not created, return");
             return false;
         }
         oneSingleJson = configFile.readString();
         configFile.close();
     }
 
-    if (oneSingleJson == "") {
+    if (oneSingleJson.length() == 0) {
         SerialPrint("E", F("Loging"), path + " file is empty");
         return false;
     }
