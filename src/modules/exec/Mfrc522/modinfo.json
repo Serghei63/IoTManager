@@ -1,0 +1,50 @@
+{
+    "menuSection": "executive_devices",
+    "configItem": [
+        {
+            "global": 0,
+            "name": "RFID Считыватель",
+            "type": "Reading",
+            "subtype": "Mfrc522",
+            "id": "rfid",
+            "widget": "anydataDef",
+            "page": "RFID",
+            "descr": "Значение",
+            "bus": "i2c",
+            "addr": "0x28",
+            "cs": 5,
+            "rst": 22,
+            "debug": 1
+        }
+    ],
+    "about": {
+        "authorName": "Serghei Crasnicov",
+        "authorContact": "",
+        "authorGit": "",
+        "specialThanks": "AI Gemini",
+        "moduleName": "Mfrc522",
+        "moduleVersion": "0.0",
+        "usedRam": {
+            "esp32_4mb": 15,
+            "esp8266_4mb": 15
+        },
+        "title": "RFID Считыватель Mfrc522",
+        "moduleDesc": "Модуль для работы с RFID считывателем Mfrc522. Возвращает ID считанной карты в значение элемента.",
+        "propInfo": {
+            "addr": "Адрес устройства на шине, обычно 0x28",
+            "bus": "Шина подключения, i2c или spi",
+            "cs": "GPIO CS по маркировке платы, к которому подключен считыватель",
+            "rst": "GPIO RST по маркировке платы, к которому подключен считыватель",
+            "debug": "Включить вывод в Serial отладочную информацию (0 - выключить, 1 - включить)"
+        }
+    },
+    "defActive": false,
+    "usedLibs": {
+        "esp32*": [
+            "https://github.com/OSSLibraries/Arduino_MFRC522v2.git"
+        ],
+        "esp82*": [
+            "https://github.com/OSSLibraries/Arduino_MFRC522v2.git"
+        ]
+    }
+}
