@@ -42,18 +42,34 @@ class Eink42 : public IoTItem {
         }
     }
 
-    String formatString(String text, uint8_t formatType, uint8_t decimals) {
-        if (text.length() == 0) return text;
+String formatString(String text, uint8_t formatType, uint8_t decimals) {
+    if (text.length() == 0) return text;
 
-        char* endptr;
-        float val = strtof(text.c_str(), &endptr);
+    char* endptr;
+    float val = strtof(text.c_str(), &endptr);
 
-        if (endptr == text.c_str()) {
-            return text;
+    // Если входящая строка не число (например, ":"), возвращаем как есть
+    if (endptr == text.c_str()) {
+        return text;
+    }
+
+    String suffix = String(endptr);
+    char buf[32];
+
+    if (decimals == 0) {
+        // Форматирование для ЦЕЛЫХ чисел (часы, минуты)
+        int intVal = (int)val;
+        if (formatType == 2) {
+            // Ведущий ноль для 2 знаков (например: 5 -> "05")
+            snprintf(buf, sizeof(buf), "%02d", intVal);
+        } else if (formatType == 1) {
+            // Пробел спереди
+            snprintf(buf, sizeof(buf), "%2d", intVal);
+        } else {
+            snprintf(buf, sizeof(buf), "%d", intVal);
         }
-
-        String suffix = String(endptr);
-        char buf[32];
+    } else {
+        // Форматирование для чисел С ЗАПЯТОЙ (дробных)
         if (formatType == 1) {
             snprintf(buf, sizeof(buf), "%*.*f", 6, decimals, val);
         } else if (formatType == 2) {
@@ -61,9 +77,10 @@ class Eink42 : public IoTItem {
         } else {
             snprintf(buf, sizeof(buf), "%.*f", decimals, val);
         }
-
-        return String(buf) + suffix;
     }
+
+    return String(buf) + suffix;
+}
 
    public:
     Eink42(String parameters) : IoTItem(parameters) {
