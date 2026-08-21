@@ -1,99 +1,81 @@
 #include "Global.h"
 #include "classes/IoTItem.h"
 #include <Wire.h>
-#include <Adafruit_APDS9960.h>
-
-// Глобальный флаг для прерывания
-volatile bool g_apdsInterrupted = false;
-
-void IRAM_ATTR apdsISR() {
-    g_apdsInterrupted = true;
-}
+#include <SparkFun_APDS9960.h>
 
 class ApdsGesture : public IoTItem {
-private:
-    Adafruit_APDS9960 apds;
+   private:
+    SparkFun_APDS9960 apds = SparkFun_APDS9960();
     bool _debug = false;
     bool _isFirstRun = true;
-    int _interruptPin;
-    int _address;
+    bool _initOK = false;
+    unsigned long _lastPoll = 0;
+    const unsigned long POLL_INTERVAL = 50;
+    int _address; 
 
-bool initAPDS() {
-        Wire.beginTransmission(_address);
-        if (Wire.endTransmission() != 0) {
-            if (_debug) Serial.printf("[APDS Error] Device not found at I2C address: 0x%02X\n", _address);
-            return false;
-        }
+    uint8_t _gain = GGAIN_4X;
+    uint8_t _ledDrive = LED_DRIVE_100MA;
 
-        if (!apds.begin(10, APDS9960_AGAIN_4X, _address)) {
-            if (_debug) Serial.println(F("[APDS Error] Failed to initialize APDS9960 chip!"));
-            return false;
-        }
+    bool initAPDS() {
+        #ifdef ESP32
+        Wire.setTimeOut(1000);
+        #endif
 
-        // Включаем режим распознавания жестов (прерывания включаются внутри сами)
-        apds.enableGesture(true);
+        if (!apds.init()) return false;
 
-        if (_debug) {
-            Serial.printf("[APDS] Configured successfully at 0x%02X. INT Pin: %d\n", _address, _interruptPin);
-        }
+        // Применяем настройки усиления и тока ИК-диода из JSON
+        apds.setGestureGain(_gain);
+        apds.setGestureLEDDrive(_ledDrive);
+
+        if (!apds.enableGestureSensor(false)) return false;
+
         return true;
     }
 
-public:
+   public:
     ApdsGesture(String parameters) : IoTItem(parameters) {
-        // Читаем I2C адрес (дефолт для APDS9960 всегда 0x39)
+
         String addrStr;
         jsonRead(parameters, F("addr"), addrStr);
-        _address = (addrStr.length() > 0) ? (int)strtol(addrStr.c_str(), NULL, 16) : 0x39;
+        _address = (int)strtol(addrStr.c_str(), NULL, 16);
+        jsonRead(parameters, "debug", _debug);
 
-        // Читаем пин аппаратного прерывания (пин INT датчика)
-        long pinValue;
-        jsonRead(parameters, F("pin"), pinValue);
-        _interruptPin = (int)pinValue;
+        // Парсим параметры gain (1, 2, 4) и led (12, 25, 50, 100)
+        int g = 4, l = 100;
+        jsonRead(parameters, "gain", g);
+        jsonRead(parameters, "led", l);
 
-        // Настройка дебага из веб-интерфейса
-        long dbgValue = 0;
-        jsonRead(parameters, F("debug"), dbgValue);
-        _debug = (dbgValue == 1);
+        if (g == 1) _gain = GGAIN_1X;
+        else if (g == 2) _gain = GGAIN_2X;
+        else _gain = GGAIN_4X;
 
-        // Отключаем опрос по таймеру, датчик сам дернет нас за пин INT
-        setInterval(0);
+        if (l == 12) _ledDrive = LED_DRIVE_12_5MA;
+        else if (l == 25) _ledDrive = LED_DRIVE_25MA;
+        else if (l == 50) _ledDrive = LED_DRIVE_50MA;
+        else _ledDrive = LED_DRIVE_100MA;
     }
-
-    void doByInterval() override {}
 
     void loop() override {
         if (_isFirstRun) {
             _isFirstRun = false;
-            Wire.begin();
-            
-            if (initAPDS()) {
-                pinMode(_interruptPin, INPUT_PULLUP); // APDS прижимает пин INT к земле
-                
-                // Гарантируем запуск службы прерываний GPIO в ESP32
-                // Разделение логики для ESP32 и ESP8266
-                #ifdef ESP32
-                gpio_install_isr_service(0); 
-                #endif
-
-                // Прерывание срабатывает по спаду (FALLING), когда датчик прижимает линию к GND
-                attachInterrupt(digitalPinToInterrupt(_interruptPin), apdsISR, FALLING);
-            }
+            _initOK = initAPDS();
         }
 
-// Если датчик поймал жест и дернул прерывание
-        if (g_apdsInterrupted) {
-            g_apdsInterrupted = false;
+        if (!_initOK) return;
 
-            // Вычитываем жест из чипа
-            uint8_t gesture = apds.readGesture();
+        if (millis() - _lastPoll < POLL_INTERVAL) return;
+        _lastPoll = millis();
+
+        int gesture = apds.readGesture();
+
+        if (gesture != DIR_NONE && gesture > 0) {
             int gestureCode = 0;
 
             switch (gesture) {
-                case APDS9960_UP:    gestureCode = 1; break;
-                case APDS9960_DOWN:  gestureCode = 2; break;
-                case APDS9960_LEFT:  gestureCode = 3; break;
-                case APDS9960_RIGHT: gestureCode = 4; break;
+                case DIR_UP:    gestureCode = 1; break; // Вверх
+                case DIR_DOWN:  gestureCode = 2; break; // Вниз
+                case DIR_LEFT:  gestureCode = 3; break; // Влево
+                case DIR_RIGHT: gestureCode = 4; break; // Вправо
             }
 
             if (gestureCode > 0) {
@@ -103,31 +85,28 @@ public:
                     Serial.printf("[APDS Gesture] Detected code: %d\n", gestureCode);
                 }
 
-                // Генерируем штатное событие умного дома
                 regEvent(String(gestureCode), "ApdsGesture");
             }
         }
     }
-
-    ~ApdsGesture() {
-        detachInterrupt(digitalPinToInterrupt(_interruptPin));
-    }
 };
 
-// Функция интеграции в API.cpp менеджера
-void *getAPI_Apds9960(String subtype, String param) {
+void* getAPI_Apds9960(String subtype, String param) {
+
     if (subtype == F("ApdsGesture")) {
+        return new ApdsGesture(param);
+    } else {
         String addr;
-        jsonRead(param, F("addr"), addr);
-        
-        // Штатное поведение автосканера
+        jsonRead(param, "addr", addr);
+
         if (addr == "") {
             Serial.println(F("[APDS] Address empty! Launching scanI2C()..."));
             scanI2C();
-            return nullptr; 
+            return nullptr;
         }
 
         return new ApdsGesture(param);
     }
+
     return nullptr;
 }

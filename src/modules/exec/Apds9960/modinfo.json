@@ -10,8 +10,9 @@
             "widget": "anydataDef",
             "page": "Жест",
             "descr": "Значение",
-            "pin": 5,
             "addr": "0x39",
+            "gain": 4,
+            "led": 100,
             "debug": 1
         }
     ],
@@ -19,7 +20,7 @@
         "authorName": "Serghei Crasnicov",
         "authorContact": "",
         "authorGit": "",
-        "specialThanks": "AI Gemini",
+        "specialThanks": "",
         "moduleName": "Apds9960",
         "moduleVersion": "0.0",
         "usedRam": {
@@ -27,20 +28,21 @@
             "esp8266_4mb": 15
         },
         "title": "Датчик жестов APDS9960",
-        "moduleDesc": "Модуль для работы с датчиком жестов APDS9960 на прерываниях. Возвращает числовой код жеста в значение элемента: 1 - Вверх (UP), 2 - Вниз (DOWN), 3 - Влево (LEFT), 4 - Вправо (RIGHT)",
+        "moduleDesc": "Модуль для работы с датчиком жестов APDS9960. Возвращает числовой код жеста в значение элемента: 1 - Вверх (UP), 2 - Вниз (DOWN), 3 - Влево (LEFT), 4 - Вправо (RIGHT)",
         "propInfo": {
             "addr": "Адрес устройства на шине, обычно 0x39",
-            "pin": "GPIO INT по маркировке платы, к которому подключен датчик жестов (по умолчанию: 5)",
+            "gain": "Усиление приема - 1 (Минимум), 2 (Среднее), 4 (Максимум)",
+            "led": "Ток через светодиод. Допустимые значения - 12 (12.5 mA (Минимум), 25 (25 mA), 50 (50 ma), 100 (100 mA (Максимум))",
             "debug": "Включить вывод в Serial отладочную информацию (0 - выключить, 1 - включить)"
         }
     },
     "defActive": false,
     "usedLibs": {
         "esp32*": [
-            "adafruit/Adafruit APDS9960 Library"
+            "sparkfun/SparkFun APDS9960 RGB and Gesture Sensor @ ^1.4.3"
         ],
         "esp82*": [
-            "adafruit/Adafruit APDS9960 Library"
+            "sparkfun/SparkFun APDS9960 RGB and Gesture Sensor @ ^1.4.3"
         ]
     }
 }
