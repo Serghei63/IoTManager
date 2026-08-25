@@ -92,13 +92,11 @@ class ApdsGesture : public IoTItem {
 };
 
 void* getAPI_Apds9960(String subtype, String param) {
-
     if (subtype == F("ApdsGesture")) {
-        return new ApdsGesture(param);
-    } else {
         String addr;
         jsonRead(param, "addr", addr);
 
+        // Если subtype наш, но адрес в конфиге забыли указать — запускаем автосканер
         if (addr == "") {
             Serial.println(F("[APDS] Address empty! Launching scanI2C()..."));
             scanI2C();
