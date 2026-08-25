@@ -99,9 +99,9 @@ public:
                 }
             }
         }
-
+        unsigned long localTime = gmtTimeToLocal(unixTime);
         // jsonWriteInt(logData, "x", unixTime - 120);
-        jsonWriteInt(logData, "x", unixTime - 120);
+        jsonWriteInt(logData, "x", localTime - 120);
         jsonWriteFloat(logData, "y1", difference);
 
         // прочитаем путь к файлу последнего сохранения
