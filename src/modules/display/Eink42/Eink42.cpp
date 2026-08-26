@@ -230,6 +230,9 @@ String formatString(String text, uint8_t formatType, uint8_t decimals) {
             display->setTextColor(GxEPD_BLACK);
             display->setCursor(cursorX, cursorY);
             display->print(text.c_str());
+
+            yield();
+            
         } while (display->nextPage());
 
         if (_debug) Serial.printf("[E-Ink] Partial update box (%d,%d,%d,%d) Align:%d Font:%d: %s\n", x, y, w, h, align, fontIdx, text.c_str());
