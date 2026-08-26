@@ -25,7 +25,7 @@ class Timer : public IoTItem {
         jsonRead(parameters, "ticker", _ticker);
         jsonRead(parameters, "repeat", _repeat);
     }
-
+/*
     void doByInterval() {
         if (!_unfin && value.valD >= 0 && !_pause) {
             if (_repeat && value.valD == 0) value.valD = _initValue;
@@ -38,7 +38,31 @@ class Timer : public IoTItem {
 
         if (_ticker && (value.valD > 0 || _unfin) && !_pause) regEvent(value.valD, "Timer tick");
     }
+*/
+void doByInterval() {
+    // Работаем ТОЛЬКО если значение строго больше 0 и нет паузы
+    if (!_unfin && value.valD > 0 && !_pause) {
+        value.valD--; // Уменьшаем значение
+        
+        // Регистрируем тик, если включен ticker
+        if (_ticker && value.valD > 0) {
+            regEvent(value.valD, "Timer tick");
+        }
 
+        // Если дошли до 0 — таймер финишировал!
+        if (value.valD == 0) {
+            regEvent(value.valD, "Time's up");
+            
+            if (_repeat) {
+                // Если включен автоповтор — перезапускаем
+                value.valD = _initValue;
+            } else {
+                // Если повтора нет — автоматически ставим на паузу/остановку!
+                _pause = true; 
+            }
+        }
+    }
+}
     IoTValue execute(String command, std::vector<IoTValue> &param) {
         if (command == "stop") { 
             _pause = true;
