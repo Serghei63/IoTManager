@@ -93,19 +93,27 @@ public:
 
     IoTValue execute(String command, std::vector<IoTValue> &param) override {
         if (command == "map" && param.size() == 5) {
+            float val = param[0].isDecimal ? param[0].valD : param[0].valS.toFloat();
+            float in_min = param[1].isDecimal ? param[1].valD : param[1].valS.toFloat();
+            float in_max = param[2].isDecimal ? param[2].valD : param[2].valS.toFloat();
+            float out_min = param[3].isDecimal ? param[3].valD : param[3].valS.toFloat();
+            float out_max = param[4].isDecimal ? param[4].valD : param[4].valS.toFloat();
+
             IoTValue valTmp;
             valTmp.isDecimal = true;
-            valTmp.valD = map(param[0].valD, param[1].valD, param[2].valD, param[3].valD, param[4].valD);
+            valTmp.valD = map(val, in_min, in_max, out_min, out_max);
+            valTmp.valS = String(valTmp.valD);
             return valTmp;
         } 
         else if (command == "parse" && param.size() >= 2) {
-            float val = param[0].valD;
-            int pos = static_cast<int>(param[1].valD);
+            // Безопасное парсирование параметров float / int / bool из чисел и строк
+            float val = param[0].isDecimal ? param[0].valD : param[0].valS.toFloat();
+            int pos = param[1].isDecimal ? static_cast<int>(param[1].valD) : param[1].valS.toInt();
             bool hideZeros = true;
 
             // Третий необязательный параметр: 0 = сохранять лидирующие нули, 1 = скрывать (по умолчанию 1)
             if (param.size() >= 3) {
-                hideZeros = (param[2].valD != 0);
+                hideZeros = param[2].isDecimal ? (param[2].valD != 0) : (param[2].valS != "0");
             }
 
             int resultDigit = parseDigit(val, pos, hideZeros);
@@ -117,7 +125,13 @@ public:
             return valTmp;
         }
         else if (command == "convertTime" && param.size() == 5) {
-            uint32_t unixTime = convertTime(param[0].valD, param[1].valD, param[2].valD, param[3].valD, param[4].valD);
+            float day = param[0].isDecimal ? param[0].valD : param[0].valS.toFloat();
+            float mon = param[1].isDecimal ? param[1].valD : param[1].valS.toFloat();
+            float yr  = param[2].isDecimal ? param[2].valD : param[2].valS.toFloat();
+            float hr  = param[3].isDecimal ? param[3].valD : param[3].valS.toFloat();
+            float min = param[4].isDecimal ? param[4].valD : param[4].valS.toFloat();
+
+            uint32_t unixTime = convertTime(day, mon, yr, hr, min);
 
             if (unixTime == (uint32_t)-1) {
                 SerialPrint("E", F("IoTMath"), F("Failed to convert time."));
@@ -127,15 +141,17 @@ public:
             IoTValue valTmp;
             valTmp.isDecimal = true;
             valTmp.valD = static_cast<float>(unixTime);
+            valTmp.valS = String(unixTime);
             return valTmp;
         } 
         else if (command == "nowInTimePeriod" && param.size() == 2) {
             IoTValue valTmp;
             valTmp.isDecimal = true;
             valTmp.valD = nowInTimePeriod(param[0].valS, param[1].valS); 
+            valTmp.valS = String((int)valTmp.valD);
             return valTmp;
         }
-else if (command == "parseTimeToMinutes" && param.size() == 1) {
+        else if (command == "parseTimeToMinutes" && param.size() == 1) {
             if (param[0].isDecimal) {
                 return param[0]; 
             }
@@ -165,6 +181,7 @@ else if (command == "parseTimeToMinutes" && param.size() == 1) {
                 long minutes = timeStr.substring(colonIdx + 1).toInt();
                 valTmp.valD = static_cast<float>((days * 1440) + (hours * 60) + minutes);
             }
+            valTmp.valS = String(valTmp.valD);
             return valTmp;
         }
 
