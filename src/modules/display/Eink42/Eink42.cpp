@@ -238,7 +238,7 @@ String formatString(String text, uint8_t formatType, uint8_t decimals) {
         if (_debug) Serial.printf("[E-Ink] Partial update box (%d,%d,%d,%d) Align:%d Font:%d: %s\n", x, y, w, h, align, fontIdx, text.c_str());
     }
 
-    // ВОЗВРАЩЕННАЯ И ОБНОВЛЕННАЯ ФУНКЦИЯ: updateSplitValue с поддержкой W и H
+// ОБНОВЛЕННАЯ ФУНКЦИЯ: updateSplitValue с выравниванием ПО ЦЕНТРУ прямоугольника (W)
     void updateSplitValue(String rawText, int x, int y, int w, int h, uint8_t fontMain, uint8_t fontSub, uint8_t decimals) {
         if (!display) return;
 
@@ -260,21 +260,27 @@ String formatString(String text, uint8_t formatType, uint8_t decimals) {
         long intPart = (long)val;
         float fracPart = fabs(val - (float)intPart);
 
-        String mainStr = String(intPart);
-        
-        char fracBuf[16];
-        snprintf(fracBuf, sizeof(fracBuf), "%.*f", decimals, fracPart);
-        String subStr = String(fracBuf);
-        
-        if (subStr.startsWith("0.")) {
-            subStr = subStr.substring(1);
+String mainStr = String(intPart);
+        String subStr = "";
+
+        if (decimals > 0) {
+            char fracBuf[16];
+            snprintf(fracBuf, sizeof(fracBuf), "%.*f", decimals, fracPart);
+            subStr = String(fracBuf);
+
+            // Отрезаем ведущий ноль (оставляем ".3", ".5" и т.д.)
+            if (subStr.startsWith("0.")) {
+                subStr = subStr.substring(1);
+            }
         }
+
+        // Пририсовываем суффикс (" C", " %" и т.д.)
         subStr += suffix;
 
         const GFXfont* fMain = getFontByIdx(fontMain);
         const GFXfont* fSub  = getFontByIdx(fontSub);
 
-        // Расчет размеров
+        // Расчет размеров элементов
         display->setFont(fMain);
         int16_t x1_m, y1_m;
         uint16_t w_m, h_m;
@@ -285,6 +291,11 @@ String formatString(String text, uint8_t formatType, uint8_t decimals) {
         uint16_t w_s, h_s;
         display->getTextBounds(subStr.c_str(), 0, 0, &x1_s, &y1_s, &w_s, &h_s);
 
+        // Общая ширина всей составной надписи (целая часть + отступ 4px + дробный хвост)
+        uint16_t totalWidth = w_m + 4 + w_s;
+
+        // Смещение по X для выравнивания всей конструкции СТРОГО ПО ЦЕНТРУ прямоугольника W
+        int cursorX = x + (w / 2) - (totalWidth / 2) - x1_m;
         int cursorY = y + h - (h - max(h_m, h_s)) / 2;
 
         // Предварительная очистка области W x H
@@ -296,21 +307,20 @@ String formatString(String text, uint8_t formatType, uint8_t decimals) {
             display->fillRect(x, y, w, h, GxEPD_WHITE);
             display->setTextColor(GxEPD_BLACK);
 
-            // Рисуем целую часть
+            // Рисуем целую часть по центру
             display->setFont(fMain);
-            display->setCursor(x - x1_m, cursorY);
+            display->setCursor(cursorX, cursorY);
             display->print(mainStr.c_str());
 
             // Рисуем дробную часть мелким шрифтом сразу за целой
             display->setFont(fSub);
-            display->setCursor(x - x1_m + w_m + 4, cursorY); 
+            display->setCursor(cursorX + w_m + 4, cursorY); 
             display->print(subStr.c_str());
 
         } while (display->nextPage());
 
         if (_debug) Serial.printf("[E-Ink] Split update box (%d,%d,%d,%d): Main '%s', Sub '%s'\n", x, y, w, h, mainStr.c_str(), subStr.c_str());
     }
-
     void loop() override {
         if (_isFirstRun) {
             _isFirstRun = false;
