@@ -1,3 +1,4 @@
+/*
 #include "Global.h"
 #include "classes/IoTItem.h"
 #include <map>
@@ -463,4 +464,364 @@ void *getAPI_ModbusRTUasync(String subtype, String param)
   {
     return nullptr;
   }
+}
+*/
+#include "Global.h"
+#include "classes/IoTItem.h"
+#include <map>
+#include <HardwareSerial.h>
+
+#include "Logging.h"
+#include "ModbusClientRTU.h"
+#include "CoilData.h"
+
+Stream *_modbusUART = nullptr;
+
+// Данные Modbus по умолчанию
+int8_t MODBUS_DIR_PIN = 0;
+#define MODBUS_UART_LINE 2
+#define MODBUS_RX_PIN 18        
+#define MODBUS_TX_PIN 19        
+#define MODBUS_SERIAL_BAUD 9600 
+
+uint32_t modBus_Token_count = 0; 
+class ModbusNode;
+std::map<uint32_t, ModbusNode *> MBNoneMap;
+ModbusClientRTU *MB = nullptr;
+
+ModbusClientRTU *instanceModBus(int8_t _DR)
+{
+  if (!MB)
+  { 
+    if (_DR > 0)
+      MB = new ModbusClientRTU(_DR);
+    else
+      MB = new ModbusClientRTU();
+  }
+  return MB;
+}
+
+class ModbusNode : public IoTItem
+{
+private:
+  uint8_t _addr = 0;    
+  String _regStr = "";  
+  String _funcStr = ""; 
+  uint8_t _func;
+  uint16_t _reg = 0;
+  uint8_t _countReg = 1;
+  uint32_t _token = 0;
+  bool _isFloat = 0;
+  CoilData _respCoil;
+
+public:
+  ModbusNode(String parameters) : IoTItem(parameters)
+  {
+    _addr = jsonReadInt(parameters, "addr"); 
+    jsonRead(parameters, "reg", _regStr);    
+    jsonRead(parameters, "func", _funcStr);  
+    jsonRead(parameters, "isFloat", _isFloat);
+    _countReg = jsonReadInt(parameters, "count");
+    _func = hexStringToUint8(_funcStr);
+    
+    if (_regStr.startsWith("0x") || _regStr.startsWith("0X")) {
+      _reg = hexStringToUint16(_regStr);
+    } else {
+      _reg = _regStr.toInt();
+    }
+
+    modBus_Token_count++;
+    _token = modBus_Token_count;
+    MBNoneMap[_token] = this;
+    Serial.printf("[ModbusNode] Добавлена нода id:%s, token:%d, reg:0x%04X\n", getID().c_str(), _token, _reg);
+  }
+
+  void doByInterval()
+  {
+    if (!MB) return;
+
+    Error err = SUCCESS;
+    if (_func == 0x04) {
+      err = MB->addRequest(_token, _addr, READ_INPUT_REGISTER, _reg, _countReg);
+    } else if (_func == 0x03) {
+      err = MB->addRequest(_token, _addr, READ_HOLD_REGISTER, _reg, _countReg);
+    } else if (_func == 0x01) {
+      err = MB->addRequest(_token, _addr, READ_COIL, _reg, _countReg);
+    } else if (_func == 0x02) {
+      err = MB->addRequest(_token, _addr, READ_DISCR_INPUT, _reg, _countReg);
+    }
+
+    if (err != SUCCESS) {
+      ModbusError e(err);
+      Serial.printf("[ModbusNode] Ошибка запроса: %02X - %s\n", (int)e, (const char *)e);
+    }
+  }
+
+  void parseMB(ModbusMessage response)
+  {
+    if (!MB) return;
+
+    // Чтение Coils и Discrete Inputs (0x01, 0x02)
+    if (_func == 0x02 || _func == 0x01) 
+    {
+      CoilData cd(_countReg);
+      cd.set(0, _countReg, (uint8_t *)response.data() + 3);
+      _respCoil = cd;
+      regEvent(cd[0], "ModbusNode");
+    }
+    else // Чтение регистров (0x03, 0x04)
+    {
+      if (_countReg == 2) 
+      {
+        if (_isFloat) {
+          float val;
+          response.get(3, val); 
+          regEvent(val, "ModbusNode");
+        } else {
+          // Чтение 32-битного Integer (ПРАВКА ДЛЯ PZEM-016: Энергия, Мощность)
+          uint32_t rawVal = 0;
+          response.get(3, rawVal); // eModBus сам забирает 4 байта
+          
+          float val = (float)rawVal;
+
+          // Автоперевод Wh в kWh для регистра энергии PZEM-016 (0x0005)
+          if (_reg == 0x0005) {
+            val /= 1000.0f;
+          }
+
+          regEvent(val, "ModbusNode");
+        }
+      } 
+      else // _countReg == 1 (16-битный регистр)
+      {
+        uint16_t val;
+        response.get(3, val);
+        
+        // Масштабирование напряжения для PZEM-016 (0x0000 = 2200 -> 220.0 V)
+        if (_reg == 0x0000 && _func == 0x04) {
+          regEvent((float)val / 10.0f, "ModbusNode");
+        } else {
+          regEvent((float)val, "ModbusNode");
+        }
+      }
+    }
+  }
+
+  IoTValue execute(String command, std::vector<IoTValue> &param)
+  {
+    IoTValue val;
+    if (command == "getBits" && param.size()) {
+      uint16_t index = param[0].valD;
+      if (_respCoil.size() > index) {
+        val.valD = _respCoil[index];
+        return val;
+      }
+    }
+    return {};
+  }
+
+  ~ModbusNode() {};
+};
+
+void handleModBusData(ModbusMessage response, uint32_t token)
+{
+  if (MBNoneMap.find(token) != MBNoneMap.end() && MBNoneMap[token]) {
+    MBNoneMap[token]->parseMB(response);
+  }
+}
+
+void handleModBusError(Error error, uint32_t token)
+{
+  ModbusError me(error);
+  Serial.printf("[ModbusAsync] Ошибка ответа: %02X - %s (Token %d)\n", (int)me, (const char *)me, token);
+}
+
+class ModbusClientAsync : public IoTItem
+{
+private:
+  int8_t _rx = MODBUS_RX_PIN;
+  int8_t _tx = MODBUS_TX_PIN;
+  int _baud = MODBUS_SERIAL_BAUD;
+  String _prot = "SERIAL_8N1";
+  int protocol = SERIAL_8N1;
+  bool _debug = false;
+
+public:
+  ModbusClientAsync(String parameters) : IoTItem(parameters)
+  {
+    _rx = (int8_t)jsonReadInt(parameters, "RX");
+    _tx = (int8_t)jsonReadInt(parameters, "TX");
+    MODBUS_DIR_PIN = (int8_t)jsonReadInt(parameters, "DIR_PIN");
+    _baud = jsonReadInt(parameters, "baud");
+    _prot = jsonReadStr(parameters, "protocol");
+    jsonRead(parameters, "debug", _debug);
+
+    if (_prot == "SERIAL_8N2") protocol = SERIAL_8N2;
+
+    if (MODBUS_DIR_PIN > 0) {
+      pinMode(MODBUS_DIR_PIN, OUTPUT);
+      digitalWrite(MODBUS_DIR_PIN, LOW);
+    }
+
+    instanceModBus(MODBUS_DIR_PIN);
+    _modbusUART = new HardwareSerial(MODBUS_UART_LINE);
+
+    RTUutils::prepareHardwareSerial((HardwareSerial &)*_modbusUART);
+    ((HardwareSerial *)_modbusUART)->begin(_baud, protocol, _rx, _tx);
+    ((HardwareSerial *)_modbusUART)->setTimeout(200);
+
+    MB->onDataHandler(&handleModBusData);
+    MB->onErrorHandler(&handleModBusError);
+    MB->setTimeout(2000);
+    MB->begin((HardwareSerial &)*_modbusUART);
+  }
+  IoTValue execute(String command, std::vector<IoTValue> &param)
+  {
+    if (param.empty()) return {};
+
+    // Берем адрес slave (1-й параметр скрипта) и адрес регистра (2-й параметр)
+    uint8_t addr = param[0].valD;
+    uint16_t reg = 0;
+
+    // Парсим адрес регистра: хоть HEX ("0x0084"), хоть десятичный ("132")
+    if (param[1].valS.startsWith("0x") || param[1].valS.startsWith("0X")) {
+      reg = hexStringToUint16(param[1].valS);
+    } else {
+      reg = param[1].valS.toInt(); 
+    }
+
+    // 1. Запись одного 16-битного регистра (0x06)
+    if (command == "writeSingleRegister" && param.size() >= 3) 
+    {
+      uint16_t state = param[2].valD;
+      MB->addRequest(0, addr, WRITE_HOLD_REGISTER, reg, state);
+    }
+    // 2. Запись одного койла/бита (0x05)
+    else if (command == "writeSingleCoil" && param.size() >= 3) 
+    {
+      bool state = param[2].valD;
+      MB->addRequest(0, addr, WRITE_COIL, reg, (uint16_t)(state ? 0xFF00 : 0x0000));
+    }
+    // 3. Запись ДВУХ регистров (0x10 / WRITE_MULT_REGISTERS)
+    // Поддерживает сценарии DWIN: mbm3.writeMultipleRegisters(2, "132", 23041, 0002)
+    else if (command == "writeMultipleRegisters" && param.size() >= 3) 
+    {
+      uint16_t wData[2];
+
+      // Твой сценарий DWIN: передано 2 независимых 16-битных целых числа (param[2] и param[3])
+      if (param.size() >= 4 && param[3].valS != "float" && param[3].valS != "int") 
+      {
+        wData[0] = (uint16_t)param[2].valD; // Первый регистр (например, 23041 / 0x5A01)
+        wData[1] = (uint16_t)param[3].valD; // Второй регистр (номер страницы)
+      }
+      // Обычная 32-битная запись INT
+      else if (param.size() >= 4 && param[3].valS == "int") 
+      {
+        uint32_t val32 = (uint32_t)param[2].valD;
+        wData[0] = (uint16_t)(val32 >> 16);   
+        wData[1] = (uint16_t)(val32 & 0xFFFF);
+      }
+      // Обычная 32-битная запись FLOAT (IEEE 754)
+      else 
+      {
+        float valFloat = (float)param[2].valD;
+        uint32_t val32;
+        memcpy(&val32, &valFloat, sizeof(val32));
+        wData[0] = (uint16_t)(val32 >> 16);   
+        wData[1] = (uint16_t)(val32 & 0xFFFF);
+      }
+
+      Error err = MB->addRequest(0, addr, WRITE_MULT_REGISTERS, reg, 2, sizeof(wData), (uint8_t*)wData);
+      if (err != SUCCESS) {
+        ModbusError e(err);
+        Serial.printf("[ModbusAsync] Ошибка DWIN 0x10: %02X - %s\n", (int)e, (const char *)e);
+      }
+    }
+
+    return {};
+  }
+/*
+  IoTValue execute(String command, std::vector<IoTValue> &param)
+  {
+    if (param.empty()) return {};
+
+    // Объявляем локальные переменные для адреса и регистра
+    uint8_t addr = param[0].valD;
+    uint16_t reg = 0;
+
+    if (param[1].valS.startsWith("0x") || param[1].valS.startsWith("0X")) {
+      reg = hexStringToUint16(param[1].valS);
+    } else {
+      reg = param[1].valS.toInt(); // Парсим десятичные адреса ("132")
+    }
+
+    // 1. Запись одного 16-битного регистра (0x06)
+    if (command == "writeSingleRegister" && param.size() >= 3) 
+    {
+      uint16_t state = param[2].valD;
+      MB->addRequest(0, addr, WRITE_HOLD_REGISTER, reg, state);
+    }
+    // 2. Запись одного койла/бита (0x05)
+    else if (command == "writeSingleCoil" && param.size() >= 3) 
+    {
+      bool state = param[2].valD;
+      MB->addRequest(0, addr, WRITE_COIL, reg, (uint16_t)(state ? 0xFF00 : 0x0000));
+    }
+    // 3. Запись ДВУХ регистров (0x10 / WRITE_MULT_REGISTERS)
+    // Поддерживает сценарии DWIN: mbm3.writeMultipleRegisters(2, "132", 23041, 0002)
+    else if (command == "writeMultipleRegisters" && param.size() >= 3) 
+    {
+      uint16_t wData[2];
+
+      // Твой сценарий DWIN: передано 2 независимых 16-битных целых числа (param[2] и param[3])
+      if (param.size() >= 4 && param[3].valS != "float" && param[3].valS != "int") 
+      {
+        wData[0] = (uint16_t)param[2].valD; // Первый регистр (например, 23041 / 0x5A01)
+        wData[1] = (uint16_t)param[3].valD; // Второй регистр (номер страницы)
+      }
+      // Обычная 32-битная запись INT
+      else if (param.size() >= 4 && param[3].valS == "int") 
+      {
+        uint32_t val32 = (uint32_t)param[2].valD;
+        wData[0] = (uint16_t)(val32 >> 16);   
+        wData[1] = (uint16_t)(val32 & 0xFFFF);
+      }
+      // Обычная 32-битная запись FLOAT (IEEE 754)
+      else 
+      {
+        float valFloat = (float)param[2].valD;
+        uint32_t val32;
+        memcpy(&val32, &valFloat, sizeof(val32));
+        wData[0] = (uint16_t)(val32 >> 16);   
+        wData[1] = (uint16_t)(val32 & 0xFFFF);
+      }
+
+      Error err = MB->addRequest(0, addr, WRITE_MULT_REGISTERS, reg, 2, sizeof(wData), (uint8_t*)wData);
+      if (err != SUCCESS) {
+        ModbusError e(err);
+        Serial.printf("[ModbusAsync] Ошибка DWIN 0x10: %02X - %s\n", (int)e, (const char *)e);
+      }
+    }
+
+    return {};
+  }
+*/
+  ~ModbusClientAsync()
+  {
+    if (_modbusUART) {
+      delete _modbusUART;
+      _modbusUART = nullptr;
+    }
+    MBNoneMap.clear();
+  };
+};
+
+void *getAPI_ModbusRTUasync(String subtype, String param)
+{
+  if (subtype == F("mbNode")) {
+    return new ModbusNode(param);
+  } else if (subtype == F("mbClient")) {
+    return new ModbusClientAsync(param);
+  }
+  return nullptr;
 }
