@@ -1,403 +1,251 @@
 #include "Global.h"
 #include "classes/IoTUart.h"
-
 #include "classes/IoTItem.h"
 
-extern IoTGpio IoTgpio;
-
-// Переключение страниц
-
- char x0 [10] ={0x5A, 0xA5, 0x07, 0x82, 0x00, 0x84, 0x5A, 0x01, 0x00, 0x00};
- char x1 [10] ={0x5A, 0xA5, 0x07, 0x82, 0x00, 0x84, 0x5A, 0x01, 0x00, 0x01};
-
- char x2 [10] ={0x5A, 0xA5, 0x07, 0x82, 0x00, 0x84, 0x5A, 0x01, 0x00, 0x02};
- char x3 [10] ={0x5A, 0xA5, 0x07, 0x82, 0x00, 0x84, 0x5A, 0x01, 0x00, 0x03};
- char x4 [10] ={0x5A, 0xA5, 0x07, 0x82, 0x00, 0x84, 0x5A, 0x01, 0x00, 0x04};
- char x5 [10] ={0x5A, 0xA5, 0x07, 0x82, 0x00, 0x84, 0x5A, 0x01, 0x00, 0x05};
- char x6 [10] ={0x5A, 0xA5, 0x07, 0x82, 0x00, 0x84, 0x5A, 0x01, 0x00, 0x06};
- char x7 [10] ={0x5A, 0xA5, 0x07, 0x82, 0x00, 0x84, 0x5A, 0x01, 0x00, 0x07};
-
- char x8 [10] ={0x5A, 0xA5, 0x07, 0x82, 0x00, 0x84, 0x5A, 0x01, 0x00, 0x08};
- char x9 [10] ={0x5A, 0xA5, 0x07, 0x82, 0x00, 0x84, 0x5A, 0x01, 0x00, 0x09};
-
-
-
- char x5000m [7] ={0x5A,0xA5,0x05,0x82,0x50,0x00,0x00};
- int x5000w = 0;
-
-  char x0m [13] ={0x5A, 0xA5, 0x0B, 0x82, 0x03, 0x10, 0x5A, 0xA5, 0x01, 0x00, 0x00, 0x01, 0x00};
- int x0w = 0;
-
-  char x5001m [7] ={0x5A,0xA5,0x05,0x82,0x50,0x01,0x00};
- int x5001w = 0;
-
-  char x1m [13] ={0x5A, 0xA5, 0x0B, 0x82, 0x03, 0x10, 0x5A, 0xA5, 0x01, 0x00, 0x01, 0x01, 0x00};
- int x1w = 0;
-
-  char x5002m [7] ={0x5A,0xA5,0x05,0x82,0x50,0x02,0x00};
- int x5002w = 0;
-
-  char x2m [13] ={0x5A, 0xA5, 0x0B, 0x82, 0x03, 0x10, 0x5A, 0xA5, 0x01, 0x00, 0x02, 0x01, 0x00};
- int x2w = 0;
-
-  char x5003m [7] ={0x5A,0xA5,0x05,0x82,0x50,0x03,0x00};
- int x5003w = 0;
-
-  char x3m [13] ={0x5A, 0xA5, 0x0B, 0x82, 0x03, 0x10, 0x5A, 0xA5, 0x01, 0x00, 0x03, 0x01, 0x00};
- int x3w = 0;
-
-  char x5004m [7] ={0x5A,0xA5,0x05,0x82,0x50,0x04,0x00};
- int x5004w = 0;
-
-  char x4m [13] ={0x5A, 0xA5, 0x0B, 0x82, 0x03, 0x10, 0x5A, 0xA5, 0x01, 0x00, 0x04, 0x01, 0x00};
- int x4w = 0;
-
-
-int x = 3;
-
-//SoftwareSerial mySerial(2,3);
-#define ERROR_UPTIME 0
-#define INDATA_SIZE 82
-#define PCDATA_SIZE 20
-
-    char inData[INDATA_SIZE];
-    int PCdata[PCDATA_SIZE];
-    int pcdata_count = 0;  // Количество валидных значений в PCdata
-    byte PLOTmem[6][16];
-    byte blocks, halfs;
-    byte lvalue = 0;
-    String string_convert;
-    unsigned long timeout = 0, uptime_timer = 0, plot_timer = 0;
-    boolean lightState, reDraw_flag = 1, updateDisplay_flag, updateTemp_flag, timeOut_flag = 1;
-    byte plotLines[] = {0, 1, 4, 5, 6, 7};
-    
-    void parsing() {
-      while (Serial.available() > 0) {
-        char aChar = Serial.read();
-        if (aChar != 'E') {
-          // Защита от переполнения буфера
-          if (lvalue < INDATA_SIZE - 1) {
-            inData[lvalue] = aChar;
-            lvalue++;
-            inData[lvalue] = '\0';
-          } else {
-            // Переполнение буфера - сброс
-            SerialPrint("E", "DwinI", "inData buffer overflow, resetting");
-            lvalue = 0;
-            inData[0] = '\0';
-          }
-        } else {
-          // Парсинг накопленной строки
-          char inDataCopy[INDATA_SIZE];
-          strncpy(inDataCopy, inData, INDATA_SIZE - 1);
-          inDataCopy[INDATA_SIZE - 1] = '\0';
-          
-          char *saveptr = nullptr;
-          char *str = strtok_r(inDataCopy, ";", &saveptr);
-          pcdata_count = 0;
-          
-          while (str != NULL && pcdata_count < PCDATA_SIZE) {
-            PCdata[pcdata_count] = atoi(str);
-            pcdata_count++;
-            str = strtok_r(nullptr, ";", &saveptr);
-          }
-          
-          lvalue = 0;
-          inData[0] = '\0';
-          updateDisplay_flag = 1;
-          updateTemp_flag = 1;
-        }
-        if (!timeOut_flag) {
-          if (ERROR_UPTIME) uptime_timer = millis();
-        }
-        timeout = millis();
-        timeOut_flag = 1;
-      }
-    }
-    void updatePlot() {
-      // Проверка валидности pcdata_count и индекса 17
-      if (pcdata_count <= 17) return;
-      
-      uint32_t interval = (uint32_t)PCdata[17] * 1000;
-      if ((millis() - plot_timer) > interval) {
-        for (int i = 0; i < 6; i++) {
-          for (int j = 0; j < 15; j++) {
-            PLOTmem[i][j] = PLOTmem[i][j + 1];
-          }
-        }
-        for (int i = 0; i < 6; i++) {
-          byte idx = plotLines[i];
-          if (idx < pcdata_count) {
-            PLOTmem[i][15] = (byte)ceil((float)PCdata[idx] / 3.0f);
-          }
-        }
-        plot_timer = millis();
-      }
-    }
-
+// Внешнее объявление списка всех запущенных элементов ядра
+extern std::list<IoTItem*> IoTItems;
 
 class DwinI : public IoTUart {
    private:
-    uint8_t _headerBuf[260];    // буфер для приема пакета dwin
-    int _headerIndex = 0;       // счетчик принятых байт пакета
+    uint8_t _headerBuf[260];    // Буфер для приема пакетов DWIN
+    int _headerIndex = 0;
 
-
-
-   public:
-    DwinI(String parameters) : IoTUart(parameters) {
-
-
-        
-        
+    // Универсальный метод поиска любого элемента системы по ID
+    IoTItem* findItem(const String& id) {
+        for (auto item : IoTItems) {
+            if (item && item->getID() == id) {
+                return item;
+            }
+        }
+        return nullptr;
     }
 
-    
+   public:
+    DwinI(String parameters) : IoTUart(parameters) {}
 
+    // =========================================================================
+    // 1. ВЫГРУЗКА ИСТОРИИ ИЗ RINGBUFFER НА ЭКРАН DWIN
+    // =========================================================================
+    void sendHistoryFromBuffer(uint8_t srcChan, uint8_t dstChan) {
+        if (!_myUART) return;
+
+        // Ищем наш модуль логирования в системе
+        IoTItem* item = findItem("logbuf"); 
+        if (!item) {
+            SerialPrint("E", "DwinI", "RingBuffer [logbuf] not found!");
+            return;
+        }
+
+    }
+
+    // =========================================================================
+    // 2. ПРИЕМ И ПАРСИНГ ДАННЫХ ИЗ UART (События с тачскрина DWIN)
+    // =========================================================================
     void uartHandle() {
         if (!_myUART) return;
         
-        if (_myUART->available()) {
+        while (_myUART->available()) {
             _headerBuf[_headerIndex] = _myUART->read();
 
-            // ищем валидный заголовок пакета dwin, проверяя каждый следующий байт
-            if (_headerIndex == 0 && _headerBuf[_headerIndex] != 0x5A || 
-                _headerIndex == 1 && _headerBuf[_headerIndex] != 0xA5 || 
-                _headerIndex == 2 && _headerBuf[_headerIndex] == 0 || 
-                _headerIndex == 3 && _headerBuf[_headerIndex] == 0x82 ) {
+            // Ищем заголовок кадра DWIN: 5A A5 [Length] 82 ...
+            if ((_headerIndex == 0 && _headerBuf[0] != 0x5A) || 
+                (_headerIndex == 1 && _headerBuf[1] != 0xA5) || 
+                (_headerIndex == 2 && _headerBuf[2] == 0) || 
+                (_headerIndex == 3 && _headerBuf[3] != 0x82)) {
                 _headerIndex = 0;
-                return;
+                continue;
             }
 
-            if (_headerIndex == _headerBuf[2] + 2) {    // получили все данные из пакета
-                 Serial.print("ffffffff");
-                  for (int i=0; i<=_headerIndex; i++)
-                     Serial.printf("%#x ", _headerBuf[i]);
-                 Serial.println("!!!");
-                
-                String valStr, id = "_";
-                if (_headerIndex == 8) {    // предполагаем, что получили int16
-                    valStr = (String)((_headerBuf[7] << 8) | _headerBuf[8]);
-                }
-
+            // Пакет получен полностью
+            if (_headerIndex == _headerBuf[2] + 2) {
                 char buf[5];
                 hex2string(_headerBuf + 4, 2, buf);
-                id += (String)buf;
+                String vpAddr = String(buf);
 
-                IoTItem* item = findIoTItemByPartOfName(id);
-                if (item) {
-                    Serial.printf("received data: %s for VP: %s for ID: %s\n", valStr, buf, item->getID());
-                    generateOrder(item->getID(), valStr);
+                // --- А) СМЕНА СТРАНИЦЫ (VP 0x0084) ---
+                if (vpAddr == "0084") {
+                    uint16_t page = (_headerBuf[7] << 8) | _headerBuf[8];
+                    
+                    // Логика разворачивания графиков по тапу:
+                    // Страницы 5, 6, 7, 8 — полноэкранные графики для каналов 0, 1, 2, 3
+                    if (page >= 5 && page <= 8) {
+                        uint8_t selectedPlot = page - 5; 
+                        sendHistoryFromBuffer(selectedPlot, 0); // Рисуем в канал 0 большого экрана
+                    }
+                    // Возврат на обзорный экран (Страница 1 с 4 маленькими графиками)
+                    else if (page == 1) {
+                        for (uint8_t ch = 0; ch < 4; ch++) {
+                            sendHistoryFromBuffer(ch, ch);
+                        }
+                    }
+
+                    // Генерируем событие смены страницы в систему
+                    generateOrder("dwin_page", String(page));
+                } 
+                // --- Б) КНОПКИ И ПЕРЕМЕННЫЕ С ЭКРАНА ---
+                else {
+                    String valStr = String((_headerBuf[7] << 8) | _headerBuf[8]);
+                    String id = "_" + vpAddr;
+                    
+                    // Поиск элемента с VP-адресом
+                    for (auto item : IoTItems) {
+                        if (item && item->getID().endsWith(id)) {
+                            generateOrder(item->getID(), valStr);
+                            break;
+                        }
+                    }
                 }
                 
                 _headerIndex = 0;
                 return;
             }
 
-            
-                
             _headerIndex++;
+            if (_headerIndex >= 260) _headerIndex = 0;
         }
     }
 
+    // =========================================================================
+    // 3. ОТПРАВКА ОБНОВЛЕНИЙ ИЗ СИСТЕМЫ НА ЭКРАН (Реакция на события)
+    // =========================================================================
     void onRegEvent(IoTItem* eventItem) {
         if (!_myUART || !eventItem) return; 
-        int indexOf_;
-        String printStr = "";
-        
-        printStr = eventItem->getID();
-        indexOf_ = printStr.indexOf("_");
+
+        String printStr = eventItem->getID();
+        int indexOf_ = printStr.indexOf("_");
+        if (indexOf_ == -1 || indexOf_ == 0) return;
+
         uint8_t sizeOfVPPart = printStr.length() - indexOf_ - 1;
-        if (indexOf_ == -1 || !_myUART || sizeOfVPPart < 4 || indexOf_ == 0)  return;  // пропускаем событие, если нет признака _ или признак пустой
+        if (sizeOfVPPart < 4) return;
         
-        char typeOfVP = sizeOfVPPart == 5 ? printStr.charAt(indexOf_ + 5) : 0;
+        char typeOfVP = (sizeOfVPPart == 5) ? printStr.charAt(indexOf_ + 5) : 0;
         String VP = printStr.substring(indexOf_ + 1, indexOf_ + 5);
 
-        if (typeOfVP == 0) {    // если не указан тип, то додумываем на основании типа данных источника
-            if (eventItem->value.isDecimal)
-                typeOfVP = 'i';
-                
-            else
-                typeOfVP = 's';
+        if (typeOfVP == 0) {
+            typeOfVP = eventItem->value.isDecimal ? 'i' : 's';
         }
 
+        // --- Вывод 16-битного INT (VP_xxxx или VP_xxxxi) ---
         if (typeOfVP == 'i') {
             _myUART->write(0x5A);
             _myUART->write(0xA5);
-            _myUART->write(0x05);   // размер данных отправляемых с учетом целых чисел int
-            _myUART->write(0x82);   // требуем запись в память
-            uartPrintHex(VP);       // отправляем адрес в памяти VP
+            _myUART->write(0x05);   
+            _myUART->write(0x82);   
+            uartPrintHex(VP);       
             
-            if (!eventItem->value.isDecimal) {
-                eventItem->value.valD = atoi(eventItem->value.valS.c_str());
-            }
-
-            _myUART->write(highByte((int)eventItem->value.valD));
-            _myUART->write(lowByte((int)eventItem->value.valD));
+            int val = eventItem->value.isDecimal ? (int)eventItem->value.valD : atoi(eventItem->value.valS.c_str());
+            _myUART->write(highByte(val));
+            _myUART->write(lowByte(val));
         }
-
-        if (typeOfVP == 's') {
+        // --- Вывод строки UTF-16 (VP_xxxxs) ---
+        else if (typeOfVP == 's') {
             if (eventItem->value.isDecimal) {
                 eventItem->value.valS = eventItem->getValue();
             }
 
-            // подсчитываем количество символов отличающихся от ASCII, для понимания сколько символов состоит из дух байт
             int u16counter = 0;
             const char* valSptr = eventItem->value.valS.c_str();
-            for (int i=0; i < eventItem->value.valS.length(); i++) {
-                if (valSptr[i] > 200) u16counter++;
+            for (size_t i = 0; i < eventItem->value.valS.length(); i++) {
+                if ((uint8_t)valSptr[i] > 200) u16counter++;
             }
 
             _myUART->write(0x5A);
             _myUART->write(0xA5);
-            _myUART->write((eventItem->value.valS.length() - u16counter) * 2 + 5);  // подсчитываем и отправляем размер итоговой строки + служебные байты
-            _myUART->write(0x82);   // требуем запись в память
-            uartPrintHex(VP);   // отправляем адрес в памяти VP
-            uartPrintStrInUTF16(eventItem->value.valS.c_str(), eventItem->value.valS.length());     // отправляем строку для записи
-            _myUART->write(0xFF);   // терминируем строку, чтоб экран очистил все остальное в элементе своем
+            _myUART->write((eventItem->value.valS.length() - u16counter) * 2 + 5);
+            _myUART->write(0x82);   
+            uartPrintHex(VP);   
+            uartPrintStrInUTF16(eventItem->value.valS.c_str(), eventItem->value.valS.length());
+            _myUART->write(0xFF);   
             _myUART->write(0xFF);
-
-            //Serial.printf("fffffffff %#x %#x %#x %#x \n", Data[0], Data[1], Data[2], Data[3]);
         }
-
-        if (typeOfVP == 'f') {
+        // --- Вывод Float IEEE 754 (VP_xxxxf) ---
+        else if (typeOfVP == 'f') {
             _myUART->write(0x5A);
             _myUART->write(0xA5);
-            _myUART->write(0x07);   // размер данных отправляемых с учетом дробных чисел dword
-            _myUART->write(0x82);   // требуем запись в память
-            uartPrintHex(VP);       // отправляем адрес в памяти VP
+            _myUART->write(0x07);   
+            _myUART->write(0x82);   
+            uartPrintHex(VP);       
             
-            byte hex[4] = {0};
-            if (!eventItem->value.isDecimal) {
-                eventItem->value.valD = atof(eventItem->value.valS.c_str()); 
-            }
-
-            byte* f_byte = reinterpret_cast<byte*>(&(eventItem->value.valD));
-            memcpy(hex, f_byte, 4);
+            float valFloat = eventItem->value.isDecimal ? (float)eventItem->value.valD : atof(eventItem->value.valS.c_str());
+            byte hex[4];
+            memcpy(hex, &valFloat, 4);
 
             _myUART->write(hex[3]);
             _myUART->write(hex[2]);
             _myUART->write(hex[1]);
             _myUART->write(hex[0]);
         }
-
-// ----------------- Переключение страниц -----------------------------
-
-        if (typeOfVP == 'r') {
-            _myUART->write(0x5A);
-            _myUART->write(0xA5);
-            _myUART->write(0x07);   // размер данных отправляемых с учетом целых чисел int
-            _myUART->write(0x82);   // требуем запись в память
-            _myUART->write(0x0084);;
-            uartPrintHex(VP);       // отправляем адрес в памяти VP
-
-
-          if (!eventItem->value.isDecimal) {
-                eventItem->value.valD = atoi(eventItem->value.valS.c_str());
-            }
-
-            _myUART->write(highByte((int)eventItem->value.valD));
-            _myUART->write(lowByte((int)eventItem->value.valD));
+        // --- Смена страницы по событию (VP_xxxxr) --- (ВОССТАНОВЛЕНО ИЗ СТАРОГО КОДА)
+        else if (typeOfVP == 'r') {
+            int page = eventItem->value.isDecimal ? (int)eventItem->value.valD : atoi(eventItem->value.valS.c_str());
+            
+            uint8_t packet[10] = {
+                0x5A, 0xA5, 0x07, 0x82, 0x00, 0x84, 0x5A, 0x01, 
+                highByte(page), 
+                lowByte(page)
+            };
+            _myUART->write(packet, 10);
         }
-        //--------------------------------------------------------------------
-        
     }
 
-        void loop() {
+    void loop() {
+        IoTItem::loop();
+    }
 
-      parsing();
-      
-      updatePlot();
-     x = PCdata[18];
-      x5000w = map(analogRead(34), 0, 1023, 0, 255);// или 1023 ?
-        _myUART->write(x5000m , 7);
-        _myUART->write(x5000w);
-       // x0w = map(analogRead(34), 0, 1000, 140, 223);
-         x0w = map(analogRead(34), 0, 2000, 90, 300);
-        _myUART->write(x0m , 13);
-        _myUART->write(x0w);
-      x = PCdata[18];
-      x5001w = map(analogRead(35), 0, 1023, 0, 255);
-        _myUART->write(x5001m , 7);
-        _myUART->write(x5001w);
-        x1w = map(analogRead(35), 0, 1000, 19, 100);
-        _myUART->write(x1m , 13);
-        _myUART->write(x1w);
-      x = PCdata[18];
-      x5002w = map(analogRead(36), 0, 1023, 0, 255);
-        _myUART->write(x5002m , 7);
-        _myUART->write(x5002w);
-        x2w = map(analogRead(36), 0, 1000, 140, 223);
-        _myUART->write(x2m , 13);
-        _myUART->write(x2w);
-      x = PCdata[18];
-      x5003w = map(analogRead(39), 0, 1023, 0, 255);
-        _myUART->write(x5003m , 7);
-        _myUART->write(x5003w);
-        x3w = map(analogRead(39), 0, 1000, 19, 100);
-        _myUART->write(x3m , 13);
-        _myUART->write(x3w);
-      x = PCdata[18];
-  
+    // =========================================================================
+    // 4. КОМАНДЫ ИЗ СЦЕНАРИЕВ IOTMANAGER
+    // =========================================================================
+    IoTValue execute(String command, std::vector<IoTValue> &param) override {
+        if (!_myUART) return {};
 
-           IoTItem::loop();
+        // Команда: dwin.setPage(N)
+        if (command == "setPage" && !param.empty()) {
+            uint16_t page = (uint16_t)param[0].valD;
+            uint8_t packet[10] = {
+                0x5A, 0xA5, 0x07, 0x82, 0x00, 0x84, 0x5A, 0x01, 
+                (uint8_t)(page >> 8), 
+                (uint8_t)(page & 0xFF)
+            };
+            _myUART->write(packet, 10);
         }
-      
+        // Совместимость со старым кодом: dwin.scr0() ... dwin.scr9()
+        else if (command.startsWith("scr") && command.length() == 4) {
+            uint16_t page = command.substring(3).toInt();
+            uint8_t packet[10] = {
+                0x5A, 0xA5, 0x07, 0x82, 0x00, 0x84, 0x5A, 0x01, 
+                0x00, 
+                (uint8_t)page
+            };
+            _myUART->write(packet, 10);
+        }
+        // Ручная запись 1 точки на график: dwin.addPoint(channel, value)
+        else if (command == "addPoint" && param.size() >= 2) {
+            uint8_t channel = (uint8_t)param[0].valD;
+            uint16_t val = (uint16_t)param[1].valD;
 
-    IoTValue execute(String command, std::vector<IoTValue> &param) {  // будет возможным использовать, когда сценарии запустятся
-
-        if (command == "scr0")
-            _myUART->write(x0 , 10);
-
-        else if (command == "scr1")
-           _myUART->write(x1 , 10);
-
-        else if (command == "scr2")
-           _myUART->write(x2 , 10);
-
-        else if (command == "scr3")
-           _myUART->write(x3 , 10);
-
-        else if (command == "scr4")
-           _myUART->write(x4 , 10);
-
-        else if (command == "scr5")
-           _myUART->write(x5 , 10);
-
-        else if (command == "scr6")
-           _myUART->write(x6 , 10);
-
-        else if (command == "scr7")
-           _myUART->write(x7 , 10);
-
-        else if (command == "scr8")
-           _myUART->write(x8 , 10);
-
-        else if (command == "scr9")
-           _myUART->write(x9 , 10);
-
+            uint8_t packet[9] = {
+                0x5A, 0xA5, 0x06, 0x82, 0x03, 0x10, 
+                channel, 
+                (uint8_t)(val >> 8), 
+                (uint8_t)(val & 0xFF)
+            };
+            _myUART->write(packet, 9);
+        }
+        // Выгрузка всей истории из RingBuffer: dwin.drawHistory(srcChan, dstChan)
+        else if (command == "drawHistory" && param.size() >= 2) {
+            sendHistoryFromBuffer((uint8_t)param[0].valD, (uint8_t)param[1].valD);
+        }
 
         doByInterval();
         return {};
     }
 
-
-    void onModuleOrder(String &key, String &value) {
-        if (key == "uploadUI") {
-            //SerialPrint("i", F("DwinI"), "Устанавливаем UI: " + value);
-            
-        }
-    }
-    
-    ~DwinI(){
-        
-    };
+    ~DwinI() {};
 };
 
 void *getAPI_DwinI(String subtype, String param) {
     if (subtype == F("DwinI")) {
         return new DwinI(param);
-    } else {
-        return nullptr;
     }
+    return nullptr;
 }
-
