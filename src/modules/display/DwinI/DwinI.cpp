@@ -24,18 +24,76 @@ class DwinI : public IoTUart {
     DwinI(String parameters) : IoTUart(parameters) {}
 
     // =========================================================================
-    // 1. ВЫГРУЗКА ИСТОРИИ ИЗ RINGBUFFER НА ЭКРАН DWIN
+    // 1. ВЫГРУЗКА ИСТОРИИ ИЗ RINGBUFFER (Универсальная)
     // =========================================================================
     void sendHistoryFromBuffer(uint8_t srcChan, uint8_t dstChan) {
         if (!_myUART) return;
 
-        // Ищем наш модуль логирования в системе
         IoTItem* item = findItem("logbuf"); 
         if (!item) {
             SerialPrint("E", "DwinI", "RingBuffer [logbuf] not found!");
             return;
         }
 
+        // 1. Формируем параметр: номер канала (0, 1, 2...)
+        std::vector<IoTValue> paramsCount;
+        IoTValue valChan;
+        valChan.valD = srcChan;
+        valChan.isDecimal = true;
+        paramsCount.push_back(valChan);
+
+        // Запрашиваем количество точек
+        IoTValue resCount = item->execute("getCount", paramsCount);
+        uint8_t count = (uint8_t)resCount.valD;
+
+        SerialPrint("I", "DwinI", "drawHistory: srcChan=" + String(srcChan) + " -> dstChan=" + String(dstChan) + " | Points: " + String(count));
+
+        if (count == 0) return;
+
+        // --- ШЛИМ КОМАНДУ ОЧИСТКИ КАНАЛА НА ЭКРАНЕ DWIN ---
+        // Третий байт с конца (0x02) говорит дисплею: "Очистить буфер этого канала"
+        uint8_t clearPacket[14] = {
+            0x5A, 0xA5, 0x0B, 0x82, 
+            0x03, 0x10,             
+            0x5A, 0xA5, 0x01, 0x00, 
+            dstChan,                // Какой канал стираем (0..7)
+            0x02,                   // 0x02 = Clear Channel Command
+            0x00, 0x00
+        };
+        _myUART->write(clearPacket, 14);
+        delay(5); // Небольшая пауза, чтобы экран успел сбросить буфер
+
+        // 2. В цикле забираем точки и рисуем свежую историю
+        for (uint8_t i = 0; i < count; i++) {
+            std::vector<IoTValue> paramsPoint;
+            
+            IoTValue pChan, pIdx;
+            pChan.valD = srcChan;
+            pChan.isDecimal = true;
+
+            pIdx.valD = i;
+            pIdx.isDecimal = true;
+
+            paramsPoint.push_back(pChan);
+            paramsPoint.push_back(pIdx);
+
+            IoTValue resPoint = item->execute("getPoint", paramsPoint);
+            uint16_t val = (uint16_t)resPoint.valD;
+
+            // Отправляем точку в DWIN
+            uint8_t packet[14] = {
+                0x5A, 0xA5, 0x0B, 0x82, 
+                0x03, 0x10,             
+                0x5A, 0xA5, 0x01, 0x00, 
+                dstChan,                
+                0x01,                   // 0x01 = Add Point Command
+                (uint8_t)(val >> 8),    
+                (uint8_t)(val & 0xFF)   
+            };
+
+            _myUART->write(packet, 14);
+            delay(2);
+        }
     }
 
     // =========================================================================
@@ -62,26 +120,13 @@ class DwinI : public IoTUart {
                 hex2string(_headerBuf + 4, 2, buf);
                 String vpAddr = String(buf);
 
-                // --- А) СМЕНА СТРАНИЦЫ (VP 0x0084) ---
+                 // --- А) СМЕНА СТРАНИЦЫ (VP 0x0084) ---
                 if (vpAddr == "0084") {
                     uint16_t page = (_headerBuf[7] << 8) | _headerBuf[8];
                     
-                    // Логика разворачивания графиков по тапу:
-                    // Страницы 5, 6, 7, 8 — полноэкранные графики для каналов 0, 1, 2, 3
-                    if (page >= 5 && page <= 8) {
-                        uint8_t selectedPlot = page - 5; 
-                        sendHistoryFromBuffer(selectedPlot, 0); // Рисуем в канал 0 большого экрана
-                    }
-                    // Возврат на обзорный экран (Страница 1 с 4 маленькими графиками)
-                    else if (page == 1) {
-                        for (uint8_t ch = 0; ch < 4; ch++) {
-                            sendHistoryFromBuffer(ch, ch);
-                        }
-                    }
-
-                    // Генерируем событие смены страницы в систему
+                    // Просто пробрасываем номер страницы в систему как событие!
                     generateOrder("dwin_page", String(page));
-                } 
+                }
                 // --- Б) КНОПКИ И ПЕРЕМЕННЫЕ С ЭКРАНА ---
                 else {
                     String valStr = String((_headerBuf[7] << 8) | _headerBuf[8]);
@@ -175,7 +220,7 @@ class DwinI : public IoTUart {
             _myUART->write(hex[1]);
             _myUART->write(hex[0]);
         }
-        // --- Смена страницы по событию (VP_xxxxr) --- (ВОССТАНОВЛЕНО ИЗ СТАРОГО КОДА)
+        // --- Смена страницы по событию (VP_xxxxr) --- 
         else if (typeOfVP == 'r') {
             int page = eventItem->value.isDecimal ? (int)eventItem->value.valD : atoi(eventItem->value.valS.c_str());
             
@@ -192,24 +237,21 @@ class DwinI : public IoTUart {
         IoTItem::loop();
     }
 
-    // =========================================================================
-    // 4. КОМАНДЫ ИЗ СЦЕНАРИЕВ IOTMANAGER
-    // =========================================================================
-    IoTValue execute(String command, std::vector<IoTValue> &param) override {
+IoTValue execute(String command, std::vector<IoTValue> &param) override {
         if (!_myUART) return {};
 
-        // Команда: dwin.setPage(N)
+        // 1. Команда смены страницы: dwin.setPage(N)
         if (command == "setPage" && !param.empty()) {
             uint16_t page = (uint16_t)param[0].valD;
             uint8_t packet[10] = {
                 0x5A, 0xA5, 0x07, 0x82, 0x00, 0x84, 0x5A, 0x01, 
-                (uint8_t)(page >> 8), 
-                (uint8_t)(page & 0xFF)
+                highByte(page), 
+                lowByte(page)
             };
             _myUART->write(packet, 10);
         }
-        // Совместимость со старым кодом: dwin.scr0() ... dwin.scr9()
-        else if (command.startsWith("scr") && command.length() == 4) {
+        // 2. Старые команды: dwin.scr0() ... dwin.scr9()
+        else if (command.startsWith("scr")) {
             uint16_t page = command.substring(3).toInt();
             uint8_t packet[10] = {
                 0x5A, 0xA5, 0x07, 0x82, 0x00, 0x84, 0x5A, 0x01, 
@@ -218,25 +260,31 @@ class DwinI : public IoTUart {
             };
             _myUART->write(packet, 10);
         }
-        // Ручная запись 1 точки на график: dwin.addPoint(channel, value)
-        else if (command == "addPoint" && param.size() >= 2) {
-            uint8_t channel = (uint8_t)param[0].valD;
-            uint16_t val = (uint16_t)param[1].valD;
+        else if (command == "drawHistory") {
+            // Забираем номер канала из первого параметра
+            uint8_t src = param.size() > 0 ? (uint8_t)param[0].valD : 0;
+            // Забираем приемный канал на DWIN из второго параметра
+            uint8_t dst = param.size() > 1 ? (uint8_t)param[1].valD : 0;
+            
+            sendHistoryFromBuffer(src, dst);
+        }
+        // 4. Добавление одиночной точки
+        else if (command == "addPoint") {
+            uint8_t channel = param.size() > 0 ? (uint8_t)param[0].valD : 0;
+            uint16_t val = param.size() > 1 ? (uint16_t)param[1].valD : 150;
 
-            uint8_t packet[9] = {
-                0x5A, 0xA5, 0x06, 0x82, 0x03, 0x10, 
-                channel, 
-                (uint8_t)(val >> 8), 
-                (uint8_t)(val & 0xFF)
+            uint8_t packet[14] = {
+                0x5A, 0xA5, 0x0B, 0x82, 
+                0x03, 0x10,             
+                0x5A, 0xA5, 0x01, 0x00, 
+                channel,                
+                0x01,                   
+                (uint8_t)(val >> 8),    
+                (uint8_t)(val & 0xFF)   
             };
-            _myUART->write(packet, 9);
-        }
-        // Выгрузка всей истории из RingBuffer: dwin.drawHistory(srcChan, dstChan)
-        else if (command == "drawHistory" && param.size() >= 2) {
-            sendHistoryFromBuffer((uint8_t)param[0].valD, (uint8_t)param[1].valD);
+            _myUART->write(packet, 14);
         }
 
-        doByInterval();
         return {};
     }
 
