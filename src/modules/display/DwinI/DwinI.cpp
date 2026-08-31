@@ -5,6 +5,18 @@
 // Внешнее объявление списка всех запущенных элементов ядра
 extern std::list<IoTItem*> IoTItems;
 
+// Стандартные RGB565 цвета DWIN (соответствуют базовым цветам каналов)
+static const uint16_t DWIN_DEF_COLORS[] = {
+    0xFFE0, // 0 - Желтый
+    0x07E0, // 1 - Зеленый
+    0xF800, // 2 - Красный
+    0x001F, // 3 - Синий
+    0xF81F, // 4 - Фиолетовый
+    0x07FF, // 5 - Голубой (Cyan)
+    0xFDA0, // 6 - Оранжевый
+    0xFFFF  // 7 - Белый
+};
+
 class DwinI : public IoTUart {
    private:
     uint8_t _headerBuf[260];    // Буфер для приема пакетов DWIN
@@ -20,8 +32,50 @@ class DwinI : public IoTUart {
         return nullptr;
     }
 
-   public:
-    DwinI(String parameters) : IoTUart(parameters) {}
+public:
+    DwinI(String parameters) : IoTUart(parameters) {
+        // --- Чтение цветов из modinfo параметров ---
+        String curveColors = "";
+        jsonRead(parameters, "curveColors", curveColors); // Получаем "00, 10, 23..."
+
+        if (curveColors.length() > 0) {
+            // Разбиваем строку по запятым
+            int i = 0;
+            while (true) {
+                String pair = selectFromMarkerToMarker(curveColors, ",", i);
+                if (pair == "") break;
+                pair.trim(); // "00", "13" и т.д.
+
+                if (pair.length() >= 2) {
+                    uint8_t chan = pair.substring(0, 1).toInt(); // Первая цифра - канал
+                    uint8_t colIdx = pair.substring(1).toInt();  // Вторая цифра - индекс цвета
+
+                    if (colIdx < 8) {
+                        setCurveColor(chan, DWIN_DEF_COLORS[colIdx]);
+                    }
+                }
+                i++;
+            }
+        }
+    }
+
+    // Метод прямой отправки RGB565 цвета в канал DWIN (через системный VP описателя трендов)
+    void setCurveColor(uint8_t channel, uint16_t colorRGB565) {
+        if (!_myUART) return;
+        
+        // В DWIN адрес цвета каналов графиков начинается с VP 0x0310 + offset
+        // Пишем прямо в структуру Control массива графиков
+        uint16_t colorAddr = 0x0312 + channel; 
+
+        uint8_t packet[8] = {
+            0x5A, 0xA5, 0x05, 0x82,
+            highByte(colorAddr),
+            lowByte(colorAddr),
+            highByte(colorRGB565),
+            lowByte(colorRGB565)
+        };
+        _myUART->write(packet, 8);
+    }
 
     // =========================================================================
     // 1. ВЫГРУЗКА ИСТОРИИ ИЗ RINGBUFFER (Универсальная)
@@ -240,8 +294,22 @@ class DwinI : public IoTUart {
 IoTValue execute(String command, std::vector<IoTValue> &param) override {
         if (!_myUART) return {};
 
-        // 1. Команда смены страницы: dwin.setPage(N)
-        if (command == "setPage" && !param.empty()) {
+        // 1. Смена цвета канала: dwin.setColor(channel, colorIndex_or_RGB565)
+        if (command == "setColor" && !param.empty()) {
+            uint8_t channel = (uint8_t)param[0].valD;
+            uint16_t colorVal = param.size() > 1 ? (uint16_t)param[1].valD : 0;
+
+            // Если передали индекс от 0 до 7 — берем готовый цвет из палитры
+            if (colorVal < 8) {
+                colorVal = DWIN_DEF_COLORS[colorVal];
+            }
+            // Иначе считаем, что передали сразу готовый RGB565 цвет (например 0xFFE0)
+
+            setCurveColor(channel, colorVal);
+        }
+
+        // 2. Команда смены страницы: dwin.setPage(N)
+        else if (command == "setPage" && !param.empty()) {
             uint16_t page = (uint16_t)param[0].valD;
             uint8_t packet[10] = {
                 0x5A, 0xA5, 0x07, 0x82, 0x00, 0x84, 0x5A, 0x01, 
@@ -250,7 +318,7 @@ IoTValue execute(String command, std::vector<IoTValue> &param) override {
             };
             _myUART->write(packet, 10);
         }
-        // 2. Старые команды: dwin.scr0() ... dwin.scr9()
+        // 3. Старые команды: dwin.scr0() ... dwin.scr9()
         else if (command.startsWith("scr")) {
             uint16_t page = command.substring(3).toInt();
             uint8_t packet[10] = {
@@ -260,6 +328,7 @@ IoTValue execute(String command, std::vector<IoTValue> &param) override {
             };
             _myUART->write(packet, 10);
         }
+        // 4. Выгрузка истории
         else if (command == "drawHistory") {
             // Забираем номер канала из первого параметра
             uint8_t src = param.size() > 0 ? (uint8_t)param[0].valD : 0;
@@ -268,7 +337,7 @@ IoTValue execute(String command, std::vector<IoTValue> &param) override {
             
             sendHistoryFromBuffer(src, dst);
         }
-        // 4. Добавление одиночной точки
+        // 5. Добавление одиночной точки
         else if (command == "addPoint") {
             uint8_t channel = param.size() > 0 ? (uint8_t)param[0].valD : 0;
             uint16_t val = param.size() > 1 ? (uint16_t)param[1].valD : 150;
