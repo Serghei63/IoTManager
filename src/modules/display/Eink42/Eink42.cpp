@@ -18,6 +18,9 @@ class Eink42 : public IoTItem {
     int _cs, _dc, _rst, _busy, _rotation;
     bool _debug;
     bool _isFirstRun = true;
+    
+    // Кэш для предотвращения бессмысленных повторных перерисовок
+    String _lastRenderedKey = "";
 
     uint16_t read16(File &f) {
         uint16_t result;
@@ -42,45 +45,40 @@ class Eink42 : public IoTItem {
         }
     }
 
-String formatString(String text, uint8_t formatType, uint8_t decimals) {
-    if (text.length() == 0) return text;
+    String formatString(String text, uint8_t formatType, uint8_t decimals) {
+        if (text.length() == 0) return text;
 
-    char* endptr;
-    float val = strtof(text.c_str(), &endptr);
+        char* endptr;
+        float val = strtof(text.c_str(), &endptr);
 
-    // Если входящая строка не число (например, ":"), возвращаем как есть
-    if (endptr == text.c_str()) {
-        return text;
-    }
-
-    String suffix = String(endptr);
-    char buf[32];
-
-    if (decimals == 0) {
-        // Форматирование для ЦЕЛЫХ чисел (часы, минуты)
-        int intVal = (int)val;
-        if (formatType == 2) {
-            // Ведущий ноль для 2 знаков (например: 5 -> "05")
-            snprintf(buf, sizeof(buf), "%02d", intVal);
-        } else if (formatType == 1) {
-            // Пробел спереди
-            snprintf(buf, sizeof(buf), "%2d", intVal);
-        } else {
-            snprintf(buf, sizeof(buf), "%d", intVal);
+        if (endptr == text.c_str()) {
+            return text;
         }
-    } else {
-        // Форматирование для чисел С ЗАПЯТОЙ (дробных)
-        if (formatType == 1) {
-            snprintf(buf, sizeof(buf), "%*.*f", 6, decimals, val);
-        } else if (formatType == 2) {
-            snprintf(buf, sizeof(buf), "%0*.*f", 7, decimals, val);
-        } else {
-            snprintf(buf, sizeof(buf), "%.*f", decimals, val);
-        }
-    }
 
-    return String(buf) + suffix;
-}
+        String suffix = String(endptr);
+        char buf[32];
+
+        if (decimals == 0) {
+            int intVal = (int)val;
+            if (formatType == 2) {
+                snprintf(buf, sizeof(buf), "%02d", intVal);
+            } else if (formatType == 1) {
+                snprintf(buf, sizeof(buf), "%2d", intVal);
+            } else {
+                snprintf(buf, sizeof(buf), "%d", intVal);
+            }
+        } else {
+            if (formatType == 1) {
+                snprintf(buf, sizeof(buf), "%*.*f", 6, decimals, val);
+            } else if (formatType == 2) {
+                snprintf(buf, sizeof(buf), "%0*.*f", 7, decimals, val);
+            } else {
+                snprintf(buf, sizeof(buf), "%.*f", decimals, val);
+            }
+        }
+
+        return String(buf) + suffix;
+    }
 
    public:
     Eink42(String parameters) : IoTItem(parameters) {
@@ -106,11 +104,14 @@ String formatString(String text, uint8_t formatType, uint8_t decimals) {
     void forceFullRefresh() {
         if (!display) return;
         if (_debug) Serial.println(F("[E-Ink] Performing full refresh..."));
+        
+        _lastRenderedKey = ""; // Сбрасываем кэш при полном обновлении
 
         display->setFullWindow();
         display->firstPage();
         do {
             display->fillScreen(GxEPD_WHITE);
+            yield(); // Даем подышать сетевому стеку
         } while (display->nextPage());
     }
 
@@ -165,6 +166,14 @@ String formatString(String text, uint8_t formatType, uint8_t decimals) {
 
         display->fillRect(x, y, winW, winH, GxEPD_WHITE);
 
+        // Буфер для вычитки строки целиком из LittleFS
+        uint8_t* rowBuf = (uint8_t*)malloc(rowSize);
+        if (!rowBuf) {
+            if (_debug) Serial.println(F("[E-Ink Error] Could not allocate row buffer!"));
+            bmpFile.close();
+            return;
+        }
+
         display->setPartialWindow(x, y, winW, winH);
         display->firstPage();
         do {
@@ -179,11 +188,16 @@ String formatString(String text, uint8_t formatType, uint8_t decimals) {
                 }
                 bmpFile.seek(pos);
 
+                // Вычитываем всю строку картинки за 1 запрос к файловой системе!
+                bmpFile.read(rowBuf, rowSize);
+
                 uint8_t b = 0;
                 int bitIdx = 0;
+                int bufByteIdx = 0;
+
                 for (int32_t col = 0; col < bmpWidth; col++) {
                     if (bitIdx == 0) {
-                        b = bmpFile.read();
+                        b = rowBuf[bufByteIdx++];
                         bitIdx = 8;
                     }
                     bitIdx--;
@@ -192,9 +206,13 @@ String formatString(String text, uint8_t formatType, uint8_t decimals) {
                         display->drawPixel(x + col, y + row, GxEPD_BLACK);
                     }
                 }
+
+                if (row % 20 == 0) yield(); // Микро-пауза каждые 20 строк BMP
             }
+            yield(); // Разблокируем сетевой поток при смене страницы
         } while (display->nextPage());
 
+        free(rowBuf);
         bmpFile.close();
         if (_debug) Serial.printf("[E-Ink] BMP rendered: %s (%dx%d) at (%d,%d)\n", filename.c_str(), bmpWidth, bmpHeight, x, y);
     }
@@ -202,13 +220,20 @@ String formatString(String text, uint8_t formatType, uint8_t decimals) {
     void updateData(String rawText, int x, int y, int w, int h, uint8_t fontIdx, uint8_t align, uint8_t formatType, uint8_t decimals) {
         if (!display) return;
 
-        String text = formatString(rawText, formatType, decimals);
+        String formattedText = formatString(rawText, formatType, decimals);
+        
+        // Проверка: изменилось ли значение или параметры отрисовки?
+        String renderKey = "D:" + String(x) + ":" + String(y) + ":" + String(w) + ":" + String(h) + ":" + String(fontIdx) + ":" + formattedText;
+        if (_lastRenderedKey == renderKey) {
+            return; // Пропускаем тяжелое физическое обновление, значение то же самое!
+        }
+
         const GFXfont* f = getFontByIdx(fontIdx);
         display->setFont(f);
 
         int16_t x1, y1;
         uint16_t textW, textH;
-        display->getTextBounds(text.c_str(), 0, 0, &x1, &y1, &textW, &textH);
+        display->getTextBounds(formattedText.c_str(), 0, 0, &x1, &y1, &textW, &textH);
 
         int cursorX = x;
         if (align == 1) { 
@@ -229,16 +254,17 @@ String formatString(String text, uint8_t formatType, uint8_t decimals) {
             display->fillRect(x, y, w, h, GxEPD_WHITE);
             display->setTextColor(GxEPD_BLACK);
             display->setCursor(cursorX, cursorY);
-            display->print(text.c_str());
+            display->print(formattedText.c_str());
 
-            yield();
+            yield(); // Пауза для сетевого стека
             
         } while (display->nextPage());
 
-        if (_debug) Serial.printf("[E-Ink] Partial update box (%d,%d,%d,%d) Align:%d Font:%d: %s\n", x, y, w, h, align, fontIdx, text.c_str());
+        _lastRenderedKey = renderKey; // Запоминаем узел
+
+        if (_debug) Serial.printf("[E-Ink] Partial update box (%d,%d,%d,%d) Align:%d Font:%d: %s\n", x, y, w, h, align, fontIdx, formattedText.c_str());
     }
 
-// ОБНОВЛЕННАЯ ФУНКЦИЯ: updateSplitValue с выравниванием ПО ЦЕНТРУ прямоугольника (W)
     void updateSplitValue(String rawText, int x, int y, int w, int h, uint8_t fontMain, uint8_t fontSub, uint8_t decimals) {
         if (!display) return;
 
@@ -249,10 +275,15 @@ String formatString(String text, uint8_t formatType, uint8_t decimals) {
         char* endptr;
         float val = strtof(cleanText.c_str(), &endptr);
 
-        // Если в строке не число — выводим стандартно через updateData
         if (endptr == cleanText.c_str()) {
             updateData(rawText, x, y, w, h, fontMain, 0, 0, decimals);
             return;
+        }
+
+        // Проверка на повторную отрисовку идентичных данных
+        String renderKey = "S:" + String(x) + ":" + String(y) + ":" + String(w) + ":" + String(h) + ":" + cleanText;
+        if (_lastRenderedKey == renderKey) {
+            return; // Избегаем повторного передергивания E-Ink
         }
 
         String suffix = String(endptr);
@@ -260,7 +291,7 @@ String formatString(String text, uint8_t formatType, uint8_t decimals) {
         long intPart = (long)val;
         float fracPart = fabs(val - (float)intPart);
 
-String mainStr = String(intPart);
+        String mainStr = String(intPart);
         String subStr = "";
 
         if (decimals > 0) {
@@ -268,19 +299,16 @@ String mainStr = String(intPart);
             snprintf(fracBuf, sizeof(fracBuf), "%.*f", decimals, fracPart);
             subStr = String(fracBuf);
 
-            // Отрезаем ведущий ноль (оставляем ".3", ".5" и т.д.)
             if (subStr.startsWith("0.")) {
                 subStr = subStr.substring(1);
             }
         }
 
-        // Пририсовываем суффикс (" C", " %" и т.д.)
         subStr += suffix;
 
         const GFXfont* fMain = getFontByIdx(fontMain);
         const GFXfont* fSub  = getFontByIdx(fontSub);
 
-        // Расчет размеров элементов
         display->setFont(fMain);
         int16_t x1_m, y1_m;
         uint16_t w_m, h_m;
@@ -291,14 +319,11 @@ String mainStr = String(intPart);
         uint16_t w_s, h_s;
         display->getTextBounds(subStr.c_str(), 0, 0, &x1_s, &y1_s, &w_s, &h_s);
 
-        // Общая ширина всей составной надписи (целая часть + отступ 4px + дробный хвост)
         uint16_t totalWidth = w_m + 4 + w_s;
 
-        // Смещение по X для выравнивания всей конструкции СТРОГО ПО ЦЕНТРУ прямоугольника W
         int cursorX = x + (w / 2) - (totalWidth / 2) - x1_m;
         int cursorY = y + h - (h - max(h_m, h_s)) / 2;
 
-        // Предварительная очистка области W x H
         display->fillRect(x, y, w, h, GxEPD_WHITE);
 
         display->setPartialWindow(x, y, w, h);
@@ -307,20 +332,23 @@ String mainStr = String(intPart);
             display->fillRect(x, y, w, h, GxEPD_WHITE);
             display->setTextColor(GxEPD_BLACK);
 
-            // Рисуем целую часть по центру
             display->setFont(fMain);
             display->setCursor(cursorX, cursorY);
             display->print(mainStr.c_str());
 
-            // Рисуем дробную часть мелким шрифтом сразу за целой
             display->setFont(fSub);
             display->setCursor(cursorX + w_m + 4, cursorY); 
             display->print(subStr.c_str());
 
+            yield(); // Пауза для фоновых сетевых задач
+
         } while (display->nextPage());
+
+        _lastRenderedKey = renderKey; // Запоминаем успешную отрисовку
 
         if (_debug) Serial.printf("[E-Ink] Split update box (%d,%d,%d,%d): Main '%s', Sub '%s'\n", x, y, w, h, mainStr.c_str(), subStr.c_str());
     }
+
     void loop() override {
         if (_isFirstRun) {
             _isFirstRun = false;
@@ -364,7 +392,6 @@ String mainStr = String(intPart);
                 regEvent(value.valS, "EInkUpdate");
             }
         }
-        // ВЫЗОВ updateSplitValue С УЧЕТОМ W И H
         else if (command == "updateSplitValue") {
             if (param.size() >= 5) {
                 String text = param[0].valS;

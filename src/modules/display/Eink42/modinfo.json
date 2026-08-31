@@ -23,7 +23,7 @@
         "authorGit": "",
         "specialThanks": "AI Gemini",
         "moduleName": "Eink42",
-        "moduleVersion": "2.1",
+        "moduleVersion": "2.2",
         "usedRam": {
             "esp32_4mb": 20,
             "esp8266_4mb": 20
@@ -41,7 +41,8 @@
         "funcInfo": [
             {
                 "name": "fullRefresh",
-                "descr": "Полная перерисовка экрана (заполнение белым + сброс фантомных изображений)"
+                "descr": "Полная перерисовка экрана (заполнение белым + сброс фантомных изображений)",
+                "params": []
             },
             {
                 "name": "setRotation",
