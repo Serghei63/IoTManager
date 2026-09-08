@@ -33,7 +33,8 @@
             "reg": "0x0000",
             "count": 1,
             "isFloat": 0,
-            "round": 0
+            "round": 0,
+            "onlyOnChange": 1
         }
 
     ],
