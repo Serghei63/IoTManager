@@ -7,17 +7,19 @@
 #include "ModbusClientRTU.h"
 #include "CoilData.h"
 
-// class ModbusUart;
 Stream *_modbusUART = nullptr;
+
+// Глобальный флаг дебага для всех функций модуля
+bool _modbusDebug = false;
 
 // Данные Modbus по умолчанию
 int8_t MODBUS_DIR_PIN = 0;
 #define MODBUS_UART_LINE 2
 #define MODBUS_RX_PIN 18        // Rx pin
 #define MODBUS_TX_PIN 19        // Tx pin
-#define MODBUS_SERIAL_BAUD 9600 // Baud rate for esp32 and max485 communication
+#define MODBUS_SERIAL_BAUD 9600 // Baud rate
 
-uint32_t modBus_Token_count = 0; // Счетчик токенов для Нод, 0 - всегду у главного класса, дальше по порядку
+uint32_t modBus_Token_count = 0; // Счетчик токенов для Нод
 class ModbusNode;
 std::map<uint32_t, ModbusNode *> MBNoneMap;
 ModbusClientRTU *MB = nullptr;
@@ -25,8 +27,7 @@ ModbusClientRTU *MB = nullptr;
 ModbusClientRTU *instanceModBus(int8_t _DR)
 {
   if (!MB)
-  { // Если библиотека ранее инициализировалась, т о просто вернем указатель
-    // Инициализируем библиотеку
+  {
     if (_DR)
       MB = new ModbusClientRTU(_DR);
     else
@@ -38,12 +39,9 @@ ModbusClientRTU *instanceModBus(int8_t _DR)
 class ModbusNode : public IoTItem
 {
 private:
-  // Initialize the ModbusMaster object as node
-  // Инициализируем объект ModbusMaster как узел
-
-  uint8_t _addr = 0;    // Адрес слейва от 1 до 247
-  String _regStr = "";  // Адрес регистра который будем дергать ( по коду от 0х0000 до 0х????)
-  String _funcStr = ""; // Функция ModBUS
+  uint8_t _addr = 0;    
+  String _regStr = "";  
+  String _funcStr = ""; 
   uint8_t _func;
   uint16_t _reg = 0;
   uint8_t _countReg = 1;
@@ -51,27 +49,11 @@ private:
   bool _isFloat = 0;
   CoilData _respCoil;
 
-  // --- НОВЫЕ ПОЛЯ ДЛЯ ФИЛЬТРАЦИИ СПАМА ---
-  bool _onlyOnChange = false; // Флаг: генерировать событие только при изменении
-  float _lastVal = -999999.0f; // Хранилище последнего прочитанного значения
+  // --- ФИЛЬТРАЦИЯ СПАМА ---
+  bool _onlyOnChange = false; 
+  float _lastVal = -999999.0f; 
 
 public:
-/*
-  ModbusNode(String parameters) : IoTItem(parameters)
-  {
-    _addr = jsonReadInt(parameters, "addr"); // адреса slave прочитаем с веба
-    jsonRead(parameters, "reg", _regStr);    // адреса регистров прочитаем с веба
-    jsonRead(parameters, "func", _funcStr);  // Функция ModBUS
-    jsonRead(parameters, "isFloat", _isFloat);
-    _countReg = jsonReadInt(parameters, "count");
-    _func = hexStringToUint8(_funcStr);
-    _reg = hexStringToUint16(_regStr);
-    modBus_Token_count++;
-    _token = modBus_Token_count;
-    MBNoneMap[_token] = this;
-    Serial.printf("Добавлен нода/токен: %s - %d\n", getID(), _token);
-  }
-*/
   ModbusNode(String parameters) : IoTItem(parameters)
   {
     _addr = jsonReadInt(parameters, "addr"); 
@@ -80,8 +62,8 @@ public:
     jsonRead(parameters, "isFloat", _isFloat);
     _countReg = jsonReadInt(parameters, "count");
     
-    // Читаем настройку фильтра (по умолчанию 0 / false)
     jsonRead(parameters, "onlyOnChange", _onlyOnChange);
+    jsonRead(parameters, "round", _round);
 
     _func = hexStringToUint8(_funcStr);
     
@@ -94,58 +76,34 @@ public:
     modBus_Token_count++;
     _token = modBus_Token_count;
     MBNoneMap[_token] = this;
-    Serial.printf("[ModbusNode] Добавлена нода id:%s, token:%d, reg:0x%04X, onlyOnChange:%d\n", getID().c_str(), _token, _reg, _onlyOnChange);
+
+    if (_modbusDebug) {
+      SerialPrint("I", "ModbusNode", "Добавлена нода id:" + getID() + ", token:" + String(_token) + ", reg:0x" + String(_reg, HEX) + ", onlyOnChange:" + String(_onlyOnChange));
+    }
   }
+
   void doByInterval()
   {
-    if (!MB)
-    {
-      Serial.printf("ModbusNode: ModbusClientAsync is NULL\n");
-      return;
+    if (!MB) return;
+
+    if (_modbusDebug) {
+      SerialPrint("I", "ModbusNode", "sending request with token " + String(_token));
     }
-    if (_func == 0x04) // vout = mb.readInputRegisters(1, "0х0000", 1, 0) - "Адрес","Регистр","Кличество регистров"
-    {
-      Serial.printf("sending request with token %d\n", _token);
-      Error err;
+
+    Error err = SUCCESS;
+    if (_func == 0x04) {
       err = MB->addRequest(_token, _addr, READ_INPUT_REGISTER, _reg, _countReg);
-      if (err != SUCCESS)
-      {
-        ModbusError e(err);
-        Serial.printf("Error creating request: %02X - %s\n", (int)e, (const char *)e);
-      }
-    }
-    else if (_func == 0x03) // vout = mb.readHoldingRegisters(1, "0х0000", 2, 1) - "Адрес","Регистр","Кличество регистров"
-    {
-      Serial.printf("sending request with token %d\n", _token);
-      Error err;
+    } else if (_func == 0x03) {
       err = MB->addRequest(_token, _addr, READ_HOLD_REGISTER, _reg, _countReg);
-      if (err != SUCCESS)
-      {
-        ModbusError e(err);
-        Serial.printf("Error creating request: %02X - %s\n", (int)e, (const char *)e);
-      }
-    }
-    else if (_func == 0x01) // vout = mb.readCoils(1, \"0х0000\", 1) - "Адрес","Регистр","Кличество бит"
-    {
-      Serial.printf("sending request with token %d\n", _token);
-      Error err;
+    } else if (_func == 0x01) {
       err = MB->addRequest(_token, _addr, READ_COIL, _reg, _countReg);
-      if (err != SUCCESS)
-      {
-        ModbusError e(err);
-        Serial.printf("Error creating request: %02X - %s\n", (int)e, (const char *)e);
-      }
-    }
-    else if (_func == 0x02) // vout = mb.readDiscreteInputs(1, \"0х0000\", 1) - "Адрес","Регистр","Кличество бит"
-    {
-      Serial.printf("sending request with token %d\n", _token);
-      Error err;
+    } else if (_func == 0x02) {
       err = MB->addRequest(_token, _addr, READ_DISCR_INPUT, _reg, _countReg);
-      if (err != SUCCESS)
-      {
-        ModbusError e(err);
-        Serial.printf("Error creating request: %02X - %s\n", (int)e, (const char *)e);
-      }
+    }
+
+    if (err != SUCCESS) {
+      ModbusError e(err);
+      SerialPrint("E", "ModbusNode", "Error creating request: " + String((int)e, HEX) + " - " + String((const char *)e));
     }
   }
 
@@ -155,7 +113,6 @@ public:
 
     float currentVal = 0.0f;
 
-    // 1. Чтение Coils и Discrete Inputs (0x01, 0x02)
     if (_func == 0x02 || _func == 0x01) 
     {
       CoilData cd(_countReg);
@@ -163,7 +120,6 @@ public:
       _respCoil = cd;
       currentVal = (float)cd[0];
     }
-    // 2. Чтение регистров (0x03, 0x04)
     else 
     {
       if (_countReg == 2) 
@@ -182,7 +138,7 @@ public:
           }
         }
       } 
-      else // _countReg == 1
+      else 
       {
         uint16_t val;
         response.get(3, val);
@@ -195,69 +151,20 @@ public:
       }
     }
 
-    // --- ПРОВЕРКА ФИЛЬТРА ONCHANGE ---
+    // Фильтр повторов
     if (_onlyOnChange) {
-      // Если значение не изменилось — выходим без вызова regEvent()
       if (currentVal == _lastVal) {
         return; 
       }
-      _lastVal = currentVal; // Запоминаем новое значение
+      _lastVal = currentVal;
     }
 
-    // Отправляем событие в систему (в веб, сценарии и т.д.)
     regEvent(currentVal, "ModbusNode");
   }
 
-/*
-  void parseMB(ModbusMessage response)
-  {
-    if (MB)
-    {
-      if (_func == 0x02 || _func == 0x01) // coil
-      {
-        uint16_t val;
-        CoilData cd(_countReg);
-        cd.set(0, _countReg, (uint8_t *)response.data() + 3);
-        _respCoil = cd;
-        cd.print("Received                          : ", Serial);
-        val = cd[0];
-        regEvent(val, "ModbusNode");
-      }
-      else
-      {
-        if (_countReg == 2 && _isFloat)
-        {
-          float val;
-          response.get(3, val);
-          regEvent(val, "ModbusNode");
-        }
-        else
-        {
-          if (_countReg == 2)
-          {
-            uint32_t val1, val2;
-            response.get(3, val1);
-            response.get(5, val2);
-            Serial.printf("COUNT 2: %02X - %02X\n", (int)val1, (int)val2);
-            long val = val1 | val2 << 16;
-            regEvent((float)val, "ModbusNode");
-          }
-          else
-          {
-            uint16_t val;
-            response.get(3, val);
-            regEvent((float)val, "ModbusNode");
-          }
-        }
-      }
-    }
-  }
-*/
-  // Комманды из сценария
   IoTValue execute(String command, std::vector<IoTValue> &param)
   {
     IoTValue val;
-
     uint16_t _index = 0;
 
     if (command == "getBits") 
@@ -275,81 +182,69 @@ public:
     return {};
   }
 
-  ~ModbusNode()
-  {
-   
-  };
+  ~ModbusNode() {};
 };
 
-// Define an onData handler function to receive the regular responses
-// Arguments are received response message and the request's token
+// Обработчик входящих ответов Modbus
 void handleModBusData(ModbusMessage response, uint32_t token)
 {
-  printf("Response --- Token:%d FC:%02X Server:%d Length:%d\n",
-         token,
-         response.getFunctionCode(),
-         response.getServerID(),
-         response.size());
-  HEXDUMP_N("Data dump", response.data(), response.size());
+  if (_modbusDebug)
+  {
+    SerialPrint("I", "ModbusRTU", 
+      "Response --- Token:" + String(token) + 
+      " FC:0x" + String(response.getFunctionCode(), HEX) + 
+      " Server:" + String(response.getServerID()) + 
+      " Length:" + String(response.size())
+    );
+    HEXDUMP_N("Data dump", response.data(), response.size());
+  }
 
-  // // First value is on pos 3, after server ID, function code and length byte
-  // uint16_t offs = 3;
-  // // The device has values all as IEEE754 float32 in two consecutive registers
-  // offs = response.get(offs, values[i]);
-  // uint16_t val;
-  // response.get(3, val);
   if (MBNoneMap[token])
   {
     MBNoneMap[token]->parseMB(response);
   }
-  else
+  else if (_modbusDebug)
   {
-    Serial.printf("Токен/Нода не найден: %d\n", token);
+    SerialPrint("E", "ModbusRTU", "Токен/Нода не найден: " + String(token));
   }
 }
 
-// Define an onError handler function to receive error responses
-// Arguments are the error code returned and a user-supplied token to identify the causing request
 void handleModBusError(Error error, uint32_t token)
 {
-  // ModbusError wraps the error code and provides a readable error message for it
   ModbusError me(error);
-  Serial.printf("Error response: %02X - %s\n", (int)me, (const char *)me);
+  SerialPrint("E", "ModbusRTU", "Error response: " + String((int)me, HEX) + " - " + String((const char *)me));
 }
 
 class ModbusClientAsync : public IoTItem
 {
 private:
-  int8_t _rx = MODBUS_RX_PIN; // адреса прочитаем с веба
+  int8_t _rx = MODBUS_RX_PIN;
   int8_t _tx = MODBUS_TX_PIN;
   int _baud = MODBUS_SERIAL_BAUD;
   String _prot = "SERIAL_8N1";
   int protocol = SERIAL_8N1;
 
-  int _addr = 0;       // Адрес слейва от 1 до 247 ( вроде )
-  String _regStr = ""; // Адрес регистра который будем дергать ( по коду от 0х0000 до 0х????)
+  int _addr = 0;       
+  String _regStr = ""; 
   uint16_t _reg = 0;
-  bool _debug;         // Дебаг
-  uint32_t _token = 0; // Токен у главного класса весгда 0
+  bool _debug = false;         
+  uint32_t _token = 0; 
 
 public:
   ModbusClientAsync(String parameters) : IoTItem(parameters)
   {
-    _rx = (int8_t)jsonReadInt(parameters, "RX"); // прочитаем с веба
+    _rx = (int8_t)jsonReadInt(parameters, "RX");
     _tx = (int8_t)jsonReadInt(parameters, "TX");
     MODBUS_DIR_PIN = (int8_t)jsonReadInt(parameters, "DIR_PIN");
     _baud = jsonReadInt(parameters, "baud");
     _prot = jsonReadStr(parameters, "protocol");
     jsonRead(parameters, "debug", _debug);
 
-    if (_prot == "SERIAL_8N1")
-    {
-      protocol = SERIAL_8N1;
-    }
-    else if (_prot == "SERIAL_8N2")
-    {
-      protocol = SERIAL_8N2;
-    }
+    // Синхронизируем глобальный флаг дебага
+    _modbusDebug = _debug;
+
+    if (_prot == "SERIAL_8N1") protocol = SERIAL_8N1;
+    else if (_prot == "SERIAL_8N2") protocol = SERIAL_8N2;
 
     pinMode(MODBUS_DIR_PIN, OUTPUT);
     digitalWrite(MODBUS_DIR_PIN, LOW);
@@ -361,76 +256,57 @@ public:
     {
       SerialPrint("I", "ModbusClientAsync", "baud: " + String(_baud) + ", protocol: " + String(protocol, HEX) + ", RX: " + String(_rx) + ", TX: " + String(_tx));
     }
+
     RTUutils::prepareHardwareSerial((HardwareSerial &)*_modbusUART);
-    ((HardwareSerial *)_modbusUART)->begin(_baud, protocol, _rx, _tx); // выбираем тип протокола, скорость и все пины с веба
+    ((HardwareSerial *)_modbusUART)->begin(_baud, protocol, _rx, _tx);
     ((HardwareSerial *)_modbusUART)->setTimeout(200);
 
-    // Set up ModbusRTU client.
-    // - provide onData handler function
     MB->onDataHandler(&handleModBusData);
-    // - provide onError handler function
     MB->onErrorHandler(&handleModBusError);
-    // Set message timeout to 2000ms
     MB->setTimeout(2000);
-    // Start ModbusRTU background task
     MB->begin((HardwareSerial &)*_modbusUART);
   }
 
-  // Комманды из сценария
   IoTValue execute(String command, std::vector<IoTValue> &param)
   {
     IoTValue val;
-
     uint16_t _reg = 0;
-    uint8_t count = 1;
-    if (command == "writeSingleRegister") // vout = mb.writeSingleRegister(1,"0x0003", 1) - addr, register, state
+
+    if (command == "writeSingleRegister") 
     {
       if (param.size())
       {
         _addr = param[0].valD;
         _reg = hexStringToUint16(param[1].valS);
-      
         uint16_t state = param[2].valD;
         
         if (_debug)
         {
-          SerialPrint("I", "ModbusClientAsync", "writeSingleRegister, addr: " + String((uint8_t)_addr, HEX) + ", regStr: " + _regStr + ", reg: " + String(_reg, HEX) + ", state: " + String(state));
+          SerialPrint("I", "ModbusClientAsync", "writeSingleRegister, addr: 0x" + String((uint8_t)_addr, HEX) + ", reg: 0x" + String(_reg, HEX) + ", state: " + String(state));
         }
 
-        // We will first set the register to a known state, read the register,
-        // then write to it and finally read it again to verify the change
-
-        // Set defined conditions first - write 0x1234 to the register
-        // The Token value is used in handleData to avoid the output for this first preparation request!
-        // uint32_t Token = 1111;
-        Serial.printf("sending request with token %d\n", _token);
-        Error err;
-        err = MB->addRequest(_token, _addr, WRITE_HOLD_REGISTER, _reg, state);
+        Error err = MB->addRequest(_token, _addr, WRITE_HOLD_REGISTER, _reg, state);
         if (err != SUCCESS)
         {
           ModbusError e(err);
-          Serial.printf("Error creating request: %02X - %s\n", (int)e, (const char *)e);
+          SerialPrint("E", "ModbusClientAsync", "Error creating request: " + String((int)e, HEX) + " - " + String((const char *)e));
         }
       }
-      // Что можно вернуть в ответ на запись ???
       return {};
     }
-    else if (command == "writeSingleCoil") // vout = mb.writeSingleCoil(1,"0x0003", 1) - addr, register, state
+    else if (command == "writeSingleCoil") 
     {
       if (param.size())
       {
         _addr = param[0].valD;
         _reg = hexStringToUint16(param[1].valS);
-
         bool state = param[2].valD;
         
         if (_debug)
         {
-          SerialPrint("I", "ModbusClientAsync", "writeSingleCoil, addr: " + String((uint8_t)_addr, HEX) + ", regStr: " + _regStr + ", reg: " + String(_reg, HEX) + ", state: " + String(state));
+          SerialPrint("I", "ModbusClientAsync", "writeSingleCoil, addr: 0x" + String((uint8_t)_addr, HEX) + ", reg: 0x" + String(_reg, HEX) + ", state: " + String(state));
         }
 
-        // next set a single coil at 8
-        Serial.printf("sending request with token %d\n", _token);
         Error err;
         ModbusMessage msg;
         if (state)
@@ -442,134 +318,56 @@ public:
         {
           err = MB->addRequest(_token, _addr, WRITE_COIL, _reg, 0);
         }
+
         if (err != SUCCESS)
         {
           ModbusError e(err);
-          Serial.printf("Error creating request: %02X - %s\n", (int)e, (const char *)e);
-        }
-      }
-      // Что можно вернуть в ответ на запись койлов???
-      return {};
-    }
-    else if (command == "writeMultipleCoils") // Пример: mb.writeMultipleCoils(1, \"0х0000\", 4, 3) - будут записаны в четыре бита 0011
-    {
-      if (param.size())
-      {
-        _addr = param[0].valD;
-        _reg = hexStringToUint16(param[1].valS);
-        count = (uint8_t)param[2].valD;
-        count = count > 16 ? 16 : count;
-        count = count < 1 ? 1 : count;
-
-        uint16_t state = param[3].valD;
-
-        Serial.printf("NOT SUPPORTED!\n");
-        if (_debug)
-        {
-          SerialPrint("I", "ModbusClientAsync", "writeSingleCoil, addr: " + String((uint8_t)_addr, HEX) + ", regStr: " + _regStr + ", reg: " + String(_reg, HEX) + ", state: " + String(state));
-        }
-
-        CoilData cd(12);
-        // Finally set a a bunch of coils starting at 20
-        cd = "011010010110";
-        Serial.printf("sending request with token %d\n", _token);
-        Error err;
-        err = MB->addRequest(_token, _addr, WRITE_MULT_COILS, _reg, cd.coils(), cd.size(), cd.data());
-        if (err != SUCCESS)
-        {
-          ModbusError e(err);
-          Serial.printf("Error creating request: %02X - %s\n", (int)e, (const char *)e);
+          SerialPrint("E", "ModbusClientAsync", "Error creating request: " + String((int)e, HEX) + " - " + String((const char *)e));
         }
       }
       return {};
     }
-/*
-//=========== Мой рабочий код, который работает с DWIN и записывает 2 регистра (float) в 0х10
-    // На данный момент записывает 2(два) регистра!!!!! Подходит для записи float?? Функция 0х10 протокола.
-    else if (command == "writeMultipleRegisters") // mb.writeMultipleRegisters(1, \"0х0000\",  1234,987)
+    else if (command == "writeMultipleRegisters" && param.size() >= 3) 
     {
-      if (param.size())
-      {
-        _addr = param[0].valD;
-        _reg = hexStringToUint16(param[1].valS);
-              
-//| 1 | uint32_t | Токен (соответствие запрос-ответ) | Токен++ |
-//| 2 | uint8_t  | Идентификатор сервера/ведомого | 1 |
-//| 3 | uint8_t  | Код функции (запись нескольких регистров) | 0x10 или 16 |
-//| 4 | uint16_t | Адрес первого регистра (начиная с нуля) | 33 |
-//| 5 | uint16_t | Количество регистров для записи | 6 |
-//| 6 | uint16_t | Количество байтов (регистры × 2) | 12 |
-//| 7 | uint16_t | Указатель на массив данных | wData |
-        
-        float state = param[2].valD;
-
-        Error err;
-
-uint16_t wData[] = { param[2].valD, param[3].valD };
-
-
-        err = MB->addRequest(_token, _addr, WRITE_MULT_REGISTERS, _reg, sizeof(wData), sizeof(wData) * 2, wData);
-        if (err != SUCCESS)
-        {
-          ModbusError e(err);
-          Serial.printf("Error creating request: %02X - %s\n", (int)e, (const char *)e);
-        }
-
-          if (err!=SUCCESS) {
-             ModbusError e(err);
-           Serial.printf("Error creating request: %02X - %s\n", (int)e, (const char *)e);
-         }
-
-        Serial.printf("NOT SUPPORTED!\n");
-        if (_debug)
-        {
-          SerialPrint("I", "ModbusClientAsync", "writeMultipleRegisters, addr: " + String((uint8_t)_addr, HEX) + ", reg: " + String(_reg, HEX) + ", state: " + String(state) + " (" + String(state, HEX) + ")");
-        }
-
-      }
-      return {};
-    }
-*/
-  // =========До этого места==========================
-  else if (command == "writeMultipleRegisters" && param.size() >= 3) 
-    {
-      uint8_t addr = param[0].valD;
+      uint8_t addr = param[0].isDecimal ? (uint8_t)param[0].valD : (uint8_t)param[0].valS.toInt();
       uint16_t reg = 0;
 
-      //float state = param[2].valD;
-      
-      // Парсим адрес регистра ("132" или "0x0084")
       if (param[1].valS.startsWith("0x") || param[1].valS.startsWith("0X")) {
         reg = hexStringToUint16(param[1].valS);
       } else {
         reg = param[1].valS.toInt();
       }
 
-      // Подготавливаем 2 регистра для DWIN
-      uint16_t wData[2];
-      wData[0] = (uint16_t)param[2].valD; // Заголовок 0x5A01 (23041)
-      wData[1] = (param.size() >= 4) ? (uint16_t)param[3].valD : 0; // Номер страницы
+      // Динамически определяем количество передаваемых регистров
+      uint16_t numRegs = param.size() - 2;
+      std::vector<uint16_t> wData(numRegs);
 
-      // Создаем объект сообщения
+      String logMsg = "writeMultipleRegisters, addr: 0x" + String(addr, HEX) + 
+                      ", reg: 0x" + String(reg, HEX) + 
+                      ", count: " + String(numRegs) + " -> ";
+
+      for (size_t i = 0; i < numRegs; i++) {
+        // Поддерживаем конвертацию как из float/int (valD), так и из строк (valS)
+        wData[i] = param[i + 2].isDecimal ? (uint16_t)param[i + 2].valD : (uint16_t)param[i + 2].valS.toInt();
+        if (_debug) {
+          logMsg += "val" + String(i + 1) + ": " + String(wData[i]) + " (0x" + String(wData[i], HEX) + ") ";
+        }
+      }
+
+      if (_debug) {
+        SerialPrint("I", "ModbusClientAsync", logMsg);
+      }
+
       ModbusMessage msg;
-      
-      // Вызываем setMessage согласно вашей библиотеке:
-      // (serverID, functionCode, startRegister, numRegisters, bytesCount, uint16_t_Array)
-      msg.setMessage(addr, WRITE_MULT_REGISTERS, reg, 2, (uint8_t)(sizeof(wData)), wData);
+      // Передаем фактическое количество регистров (numRegs) и байт (numRegs * 2)
+      msg.setMessage(addr, WRITE_MULT_REGISTERS, reg, numRegs, (uint8_t)(numRegs * 2), wData.data());
 
-      // Отправляем запрос
-     // Error err = MB->addRequest(msg, 0);
-        Error err = MB->addRequest(msg, (uint32_t)0);
+      Error err = MB->addRequest(msg, (uint32_t)0);
       
       if (err != SUCCESS) {
         ModbusError e(err);
-        Serial.printf("[ModbusAsync] Ошибка 0x10: %02X - %s\n", (int)e, (const char *)e);
+        SerialPrint("E", "ModbusClientAsync", "Ошибка 0x10: " + String((int)e, HEX) + " - " + String((const char *)e));
       }
-
-      if (_debug)
-        {
-        //  SerialPrint("I", "ModbusClientAsync", "writeMultipleRegisters, addr: " + String((uint8_t)_addr, HEX) + ", reg: " + String(_reg, HEX) + ", state: " + String(state) + " (" + String(state, HEX) + ")");
-        }
 
       return {};
     }
@@ -594,7 +392,5 @@ void *getAPI_ModbusRTUasync(String subtype, String param)
   {
     return new ModbusClientAsync(param);
   }
-  {
-    return nullptr;
-  }
+  return nullptr;
 }
