@@ -202,7 +202,33 @@ const String getTimeLocal_Weekday(bool textMode) {
         }
     }
 }
-   //-----------------------------------------------------------------
+   
+//---------------------------
+// Локальное дата время "месяц"
+const String getTimeLocal_Month(bool textMode) {
+    if (textMode) {
+        // Если запросили название месяца текстом
+        switch (_time_local.month) {
+            case 1:  return "Январь";
+            case 2:  return "Февраль";
+            case 3:  return "Март";
+            case 4:  return "Апрель";
+            case 5:  return "Май";
+            case 6:  return "Июнь";
+            case 7:  return "Июль";
+            case 8:  return "Август";
+            case 9:  return "Сентябрь";
+            case 10: return "Октябрь";
+            case 11: return "Ноябрь";
+            case 12: return "Декабрь";
+            default: return "";
+        }
+    } else {
+        // Если нужен номер месяца строкой ("1" ... "12")
+        return String(_time_local.month);
+    }
+}
+//---------------------------
 const String getDateTimeDotFormated() {
     char buf[32];
     sprintf(buf, "%02d.%02d.%02d %02d:%02d:%02d", _time_local.day_of_month, _time_local.month, _time_local.year, _time_local.hour, _time_local.minute, _time_local.second);

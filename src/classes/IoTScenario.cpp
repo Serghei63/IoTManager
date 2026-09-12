@@ -349,6 +349,7 @@ enum SysOp {
     sysop_getMinutes,     //
     sysop_getSeconds,     //
     sysop_getMonth,       //
+    sysop_getMonthText,   // <--- Добавляем вывод месяца текстом
     sysop_getDay,
     sysop_getWeekday,
     sysop_getWeekdayText, // <--- Добавили сюда новое имя
@@ -381,6 +382,10 @@ IoTValue sysExecute(SysOp command, std::vector<IoTValue> &param) {
                 break;
             case sysop_getMonth:
                 value.valD = _time_local.month;
+                break;
+            case sysop_getMonthText:
+                value.isDecimal = false;
+                value.valS = getTimeLocal_Month(true); // <--- Вызываем текстовый месяц из NTP.cpp
                 break;
             case sysop_getDay:
                 value.valD = _time_local.day_of_month;
@@ -524,6 +529,8 @@ class SysCallExprAST : public ExprAST {
             operation = sysop_getSeconds;
         else if (Callee == F("getMonth"))
             operation = sysop_getMonth;
+        else if (Callee == F("getMonthText"))
+            operation = sysop_getMonthText;
         else if (Callee == F("getDay"))
             operation = sysop_getDay;
         else if (Callee == F("getWeekday"))
