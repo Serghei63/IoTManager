@@ -74,17 +74,21 @@ public:
 
         instanceModBus(MODBUS_DIR_PIN);
         
-        if (_modbusUART == nullptr) {
-            _modbusUART = new HardwareSerial(MODBUS_UART_LINE);
-        }
+// Очищаем/останавливаем UART, если он уже был запущен ранее (при сохранении конфига)
+if (_modbusUART != nullptr) {
+    ((HardwareSerial *)_modbusUART)->end();
+} else {
+    _modbusUART = new HardwareSerial(MODBUS_UART_LINE);
+}
 
-        if (_debug) {
-            SerialPrint("I", "ModbusClientAsync", "baud: " + String(_baud) + ", protocol: " + String(protocol, HEX) + ", RX: " + String(_rx) + ", TX: " + String(_tx));
-        }
+if (_debug) {
+    SerialPrint("I", "ModbusClientAsync", "baud: " + String(_baud) + ", protocol: " + String(protocol, HEX) + ", RX: " + String(_rx) + ", TX: " + String(_tx));
+}
 
-        RTUutils::prepareHardwareSerial((HardwareSerial &)*_modbusUART);
-        ((HardwareSerial *)_modbusUART)->begin(_baud, protocol, _rx, _tx);
-        ((HardwareSerial *)_modbusUART)->setTimeout(200);
+// Теперь изменение буферов внутри prepareHardwareSerial пройдет без ошибок!
+RTUutils::prepareHardwareSerial((HardwareSerial &)*_modbusUART);
+((HardwareSerial *)_modbusUART)->begin(_baud, protocol, _rx, _tx);
+((HardwareSerial *)_modbusUART)->setTimeout(200);
 
         MB->onDataHandler(&handleModBusGroupData);
         MB->onErrorHandler(&handleModBusGroupError);
@@ -515,9 +519,6 @@ void handleModBusGroupError(Error error, uint32_t token) {
     }
 }
 
-// -------------------------------------------------------------
-// ЕДИНАЯ ТОЧКА ВХОДА (API) МОДУЛЯ
-// -------------------------------------------------------------
 void *getAPI_ModbusGroup(String subtype, String param) {
     if (subtype == F("mbClient")) {
         return new ModbusClientAsync(param);
