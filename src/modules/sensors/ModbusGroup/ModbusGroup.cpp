@@ -74,7 +74,6 @@ public:
 
         instanceModBus(MODBUS_DIR_PIN);
         
-<<<<<<< HEAD:src/modules/sensors/ModbusGroup/MudbusGroup.cpp
 // Очищаем/останавливаем UART, если он уже был запущен ранее (при сохранении конфига)
 if (_modbusUART != nullptr) {
     ((HardwareSerial *)_modbusUART)->end();
@@ -90,7 +89,6 @@ if (_debug) {
 RTUutils::prepareHardwareSerial((HardwareSerial &)*_modbusUART);
 ((HardwareSerial *)_modbusUART)->begin(_baud, protocol, _rx, _tx);
 ((HardwareSerial *)_modbusUART)->setTimeout(200);
-=======
         // Очищаем/останавливаем UART, если он уже был запущен ранее (при сохранении конфига)
         if (_modbusUART != nullptr) {
             ((HardwareSerial *)_modbusUART)->end();
@@ -106,7 +104,6 @@ RTUutils::prepareHardwareSerial((HardwareSerial &)*_modbusUART);
         RTUutils::prepareHardwareSerial((HardwareSerial &)*_modbusUART);
         ((HardwareSerial *)_modbusUART)->begin(_baud, protocol, _rx, _tx);
         ((HardwareSerial *)_modbusUART)->setTimeout(200);
->>>>>>> 0c049f0112eba18457b4ab71d89b9046516bd329:src/modules/sensors/ModbusGroup/ModbusGroup.cpp
 
         MB->onDataHandler(&handleModBusGroupData);
         MB->onErrorHandler(&handleModBusGroupError);
