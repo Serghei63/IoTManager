@@ -24,9 +24,12 @@ boolean publishStatusMqtt(const String& topic, const String& data);
 boolean publishEvent(const String& topic, const String& data);
 void mqttSubscribeExternal(String topic, bool usePrefix = false);
 
-bool publishChartFileToMqtt(String path, String id, int maxCount);
+//bool publishChartFileToMqtt(String path, String id, int maxCount);
+
+//bool publishChartFileToMqtt(String path, String id, int maxCount, String seriesArray = "", String typeChart = "");
+bool publishChartFileToMqtt(String path, String id, int maxCount, String seriesArray = "", String typeChart = "line");
 // Перегруженная функция с поддержкой series ("["Temp","Hum"]") и typeChart ("line" / "bar")
-bool publishChartFileToMqtt(String path, String id, int maxCount, String seriesArray, String typeChart = "line");
+//bool publishChartFileToMqtt(String path, String id, int maxCount, String seriesArray, String typeChart = "line");
 
 void publishWidgets();
 
