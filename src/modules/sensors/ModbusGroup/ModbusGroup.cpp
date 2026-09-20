@@ -327,6 +327,27 @@ RTUutils::prepareHardwareSerial((HardwareSerial &)*_modbusUART);
       return {};
     }
 
+    // 0x42: resetEnergy(addr)
+else if (command == "resetEnergy" && param.size() >= 1) {
+    uint8_t addr = parseAddr(param[0]);
+
+    modBus_Token_count++;
+    uint32_t token = modBus_Token_count;
+
+    if (_debug) {
+        SerialPrint("I", "ModbusClientAsync", "resetEnergy (0x42), addr: 0x" + String(addr, HEX));
+    }
+
+    // В eModbus кастомная функция передается как тип uint8_t (0x42)
+    // Регистр и значение передаются как 0
+    Error err = MB->addRequest(token, addr, (uint8_t)0x42, 0, 0);
+    if (err != SUCCESS) {
+        ModbusError e(err);
+        SerialPrint("E", "ModbusClientAsync", "Error resetEnergy: " + String((int)e, HEX));
+    }
+    return {};
+}
+
         return {};
     }
 
@@ -452,7 +473,83 @@ public:
             SerialPrint("E", "ModbusGroupSens", "Ошибка: Родительский поллер не найден: " + parentId);
         }
     }
+void updateValueFromBuffer(ModbusMessage& response, uint8_t func) {
+    // В Modbus RTU ответе байты 0, 1, 2 — это Addr, Func, ByteCount.
+    // Полезная дата начинается с индекса 3.
+    // Если у вас в _offset хранится адрес регистра (например, 3 для тока):
+    // uint16_t regIndex = _offset - _parentPollReg; 
+    // Если в _offset хранится порядковый номер регистра от начала опроса (0, 3, 8...):
+    uint16_t regIndex = _offset; 
 
+    uint16_t byteOffset = 3 + (regIndex * 2);
+
+    // Проверка на выход за пределы фактически полученного пакета
+    uint8_t requiredBytes = (_count > 0) ? (_count * 2) : 2;
+    if ((byteOffset + requiredBytes) > response.size()) {
+        return; 
+    }
+
+    float currentVal = 0.0f;
+
+    if (func == 0x01 || func == 0x02) {
+        // Логика Coils / Discrete Inputs
+        uint16_t byteIdx = 3 + (_offset / 8);
+        uint8_t bitIdx   = _offset % 8;
+        if (byteIdx < response.size()) {
+            currentVal = (response[byteIdx] & (1 << bitIdx)) ? 1.0f : 0.0f;
+        }
+    } 
+    else {
+        if (_isFloat && _count == 2) {
+            // Если прибор отдаст честный float32 (IEEE-754)
+            union {
+                uint32_t b32;
+                float f;
+            } u;
+            u.b32 = ((uint32_t)response[byteOffset]     << 24) |
+                    ((uint32_t)response[byteOffset + 1] << 16) |
+                    ((uint32_t)response[byteOffset + 2] << 8)  |
+                     (uint32_t)response[byteOffset + 3];
+            currentVal = u.f;
+        } 
+        else if (_count == 2) {
+            // 32-битное целое число (uint32_t / Long, например kWh)
+            uint32_t rawVal = ((uint32_t)response[byteOffset]     << 24) |
+                              ((uint32_t)response[byteOffset + 1] << 16) |
+                              ((uint32_t)response[byteOffset + 2] << 8)  |
+                               (uint32_t)response[byteOffset + 3];
+            currentVal = (float)rawVal;
+        } 
+        else {
+            // 16-битное целое число (uint16_t / Int, например U, I, P, F)
+            uint16_t rawVal = ((uint16_t)response[byteOffset] << 8) |
+                               (uint16_t)response[byteOffset + 1];
+            
+            // Если значение может быть отрицательным (например, мощность при отдаче в сеть)
+            // currentVal = (int16_t)rawVal; 
+            currentVal = (float)rawVal;
+        }
+
+        if (_div != 0.0f) {
+            currentVal /= _div;
+        }
+    }
+
+    // Округление результата
+    if (_round > 0) {
+        float factor = pow(10, _round);
+        currentVal = round(currentVal * factor) / factor;
+    }
+
+    // Проверка изменения значения (оповещаем только при смене)
+    if (_onlyOnChange) {
+        if (currentVal == _lastVal) return;
+        _lastVal = currentVal;
+    }
+
+    regEvent(currentVal, "ModbusGroupSens");
+}
+/*
     void updateValueFromBuffer(ModbusMessage& response, uint8_t func) {
         float currentVal = 0.0f;
 
@@ -510,7 +607,7 @@ public:
 
         regEvent(currentVal, "ModbusGroupSens");
     }
-
+*/
     void doByInterval() override {}
     ~ModbusGroupSens() {}
 };
