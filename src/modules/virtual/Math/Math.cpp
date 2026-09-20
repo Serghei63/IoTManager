@@ -119,7 +119,7 @@ public:
         }
         // =========================================================================
         // РАСЧЁТ ПОЗИЦИИ ЧАСОВОЙ СТРЕЛКИ DWIN (0..59)
-        // Формула: (hours % 12) * 5 + (minutes / 15)
+        // Формула: (hours % 12) * 5 + (minutes / 12)
         // Пример: clockh = math.clock(vouttime, 1)
         // =========================================================================
         else if (command == "clock" && param.size() >= 1) {
@@ -131,21 +131,34 @@ public:
                 type = param[1].isDecimal ? static_cast<int>(param[1].valD) : param[1].valS.toInt();
             }
 
-            int hours = selectToMarker(timeStr, ":").toInt();
-            int minutes = selectToMarkerLast(timeStr, ":").toInt();
+            // Извлекаем часы и минуты, даже если строка формата "HH:MM:SS"
+            int hours = 0;
+            int minutes = 0;
+
+            int firstColon = timeStr.indexOf(':');
+            if (firstColon != -1) {
+                hours = timeStr.substring(0, firstColon).toInt();
+                String rest = timeStr.substring(firstColon + 1);
+                int secondColon = rest.indexOf(':');
+                if (secondColon != -1) {
+                    minutes = rest.substring(0, secondColon).toInt(); // Отбрасываем секунды
+                } else {
+                    minutes = rest.toInt();
+                }
+            } else {
+                hours = timeStr.toInt();
+            }
 
             // Приводим часы к 12-часовому формату (0..11)
-            if (hours >= 12) {
-                hours -= 12;
-            }
+            hours = hours % 12;
 
             int position = 0;
 
             if (type == 1) {
-                // Часовая стрелка: 5 делений на час + 1 деление каждые 15 минут
-                position = (hours * 5) + (minutes / 15);
+                // Часовая стрелка: 5 делений на час + 1 деление каждые 12 минут (плавный ход)
+                position = (hours * 5) + (minutes / 12);
             } else if (type == 2) {
-                // Минутная стрелка (если нужно): ровно от 0 до 59
+                // Минутная стрелка: ровно от 0 до 59
                 position = minutes % 60;
             }
 
