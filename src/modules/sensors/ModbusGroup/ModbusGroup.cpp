@@ -549,65 +549,7 @@ void updateValueFromBuffer(ModbusMessage& response, uint8_t func) {
 
     regEvent(currentVal, "ModbusGroupSens");
 }
-/*
-    void updateValueFromBuffer(ModbusMessage& response, uint8_t func) {
-        float currentVal = 0.0f;
 
-        if (func == 0x01 || func == 0x02) {
-            uint8_t byteIdx = 3 + (_offset / 8);
-            uint8_t bitIdx  = _offset % 8;
-
-            if (byteIdx >= response.size()) {
-                if (_modbusDebug) {
-                    SerialPrint("E", "ModbusGroupSens", "Ошибка: смещение бита " + String(_offset) + " выходит за рамки ответа (" + String(response.size()) + " байт)");
-                }
-                return;
-            }
-
-            uint8_t dataByte = response[byteIdx];
-            currentVal = (dataByte & (1 << bitIdx)) ? 1.0f : 0.0f;
-        } 
-        else {
-            uint8_t byteOffset = 3 + (_offset * 2);
-
-            if (byteOffset + (_count * 2) > response.size()) {
-                if (_modbusDebug) {
-                    SerialPrint("E", "ModbusGroupSens", "Ошибка: смещение " + String(_offset) + " выходит за границы массива (" + String(response.size()) + " байт)");
-                }
-                return;
-            }
-
-            if (_isFloat) {
-                float val;
-                response.get(byteOffset, val);
-                currentVal = val;
-            } else {
-                if (_count == 2) {
-                    uint32_t rawVal = 0;
-                    response.get(byteOffset, rawVal);
-                    currentVal = (float)rawVal;
-                } else {
-                    uint16_t rawVal = 0;
-                    response.get(byteOffset, rawVal);
-                    currentVal = (float)rawVal;
-                }
-            }
-            currentVal /= _div;
-        }
-
-        if (_round > 0) {
-            float factor = pow(10, _round);
-            currentVal = round(currentVal * factor) / factor;
-        }
-
-        if (_onlyOnChange) {
-            if (currentVal == _lastVal) return;
-            _lastVal = currentVal;
-        }
-
-        regEvent(currentVal, "ModbusGroupSens");
-    }
-*/
     void doByInterval() override {}
     ~ModbusGroupSens() {}
 };
