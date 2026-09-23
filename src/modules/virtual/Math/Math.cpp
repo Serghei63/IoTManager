@@ -122,52 +122,64 @@ public:
         // Формула: (hours % 12) * 5 + (minutes / 12)
         // Пример: clockh = math.clock(vouttime, 1)
         // =========================================================================
-        else if (command == "clock" && param.size() >= 1) {
-            String timeStr = param[0].valS;
-            timeStr.trim();
+else if (command == "clock" && param.size() >= 1) {
+    int hours = 0;
+    int minutes = 0;
 
-            int type = 1;
-            if (param.size() >= 2) {
-                type = param[1].isDecimal ? static_cast<int>(param[1].valD) : param[1].valS.toInt();
-            }
-
-            // Извлекаем часы и минуты, даже если строка формата "HH:MM:SS"
-            int hours = 0;
-            int minutes = 0;
-
-            int firstColon = timeStr.indexOf(':');
-            if (firstColon != -1) {
-                hours = timeStr.substring(0, firstColon).toInt();
-                String rest = timeStr.substring(firstColon + 1);
-                int secondColon = rest.indexOf(':');
-                if (secondColon != -1) {
-                    minutes = rest.substring(0, secondColon).toInt(); // Отбрасываем секунды
-                } else {
-                    minutes = rest.toInt();
-                }
-            } else {
-                hours = timeStr.toInt();
-            }
-
-            // Приводим часы к 12-часовому формату (0..11)
-            hours = hours % 12;
-
-            int position = 0;
-
-            if (type == 1) {
-                // Часовая стрелка: 5 делений на час + 1 деление каждые 12 минут (плавный ход)
-                position = (hours * 5) + (minutes / 12);
-            } else if (type == 2) {
-                // Минутная стрелка: ровно от 0 до 59
-                position = minutes % 60;
-            }
-
-            IoTValue valTmp;
-            valTmp.isDecimal = true;
-            valTmp.valD = static_cast<float>(position);
-            valTmp.valS = String(position);
-            return valTmp;
+    // Если значение передано как число (isDecimal)
+    if (param[0].isDecimal) {
+        int val = static_cast<int>(param[0].valD);
+        // Если время передано в формате 1600 или 16
+        if (val >= 100) {
+            hours = val / 100;
+            minutes = val % 100;
+        } else {
+            hours = val;
+            minutes = 0;
         }
+    } else {
+        // Если передано как строка "16:00"
+        String timeStr = param[0].valS;
+        timeStr.trim();
+
+        int firstColon = timeStr.indexOf(':');
+        if (firstColon != -1) {
+            hours = timeStr.substring(0, firstColon).toInt();
+            String rest = timeStr.substring(firstColon + 1);
+            int secondColon = rest.indexOf(':');
+            if (secondColon != -1) {
+                minutes = rest.substring(0, secondColon).toInt();
+            } else {
+                minutes = rest.toInt();
+            }
+        } else {
+            hours = timeStr.toInt();
+        }
+    }
+
+    // Приводим часы к 12-часовому формату (0..11)
+    hours = hours % 12;
+
+    int type = 1;
+    if (param.size() >= 2) {
+        type = param[1].isDecimal ? static_cast<int>(param[1].valD) : param[1].valS.toInt();
+    }
+
+    int position = 0;
+    if (type == 1) {
+        // Часовая стрелка (0..59)
+        position = (hours * 5) + (minutes / 12); // К слову: лучше /12 для 60 делений, чем /15
+    } else if (type == 2) {
+        // Минутная стрелка (0..59)
+        position = minutes % 60;
+    }
+
+    IoTValue valTmp;
+    valTmp.isDecimal = true;
+    valTmp.valD = static_cast<float>(position);
+    valTmp.valS = String(position);
+    return valTmp;
+}
         else if (command == "convertTime" && param.size() == 5) {
             float day = param[0].isDecimal ? param[0].valD : param[0].valS.toFloat();
             float mon = param[1].isDecimal ? param[1].valD : param[1].valS.toFloat();
