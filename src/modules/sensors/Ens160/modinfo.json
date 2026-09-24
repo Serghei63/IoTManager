@@ -1,0 +1,72 @@
+{
+    "menuSection": "sensors",
+    "configItem": [
+        {
+            "global": 0,
+            "name": "Ens160 TVOC",
+            "type": "Reading",
+            "subtype": "Ens160tvoc",
+            "id": "etvoc160",
+            "widget": "anydataPpm",
+            "page": "Сенсоры",
+            "descr": "ENS160_TVOC",
+            "int": 15,
+            "round": 0
+        },
+        {
+            "global": 0,
+            "name": "Ens160 eCO2",
+            "type": "Reading",
+            "subtype": "Ens160eco2",
+            "id": "eco2160",
+            "widget": "anydataPpm",
+            "page": "Сенсоры",
+            "descr": "ENS160_eCO2",
+            "int": 15,
+            "round": 0
+        },
+        {
+            "global": 0,
+            "name": "Ens160 AQI",
+            "type": "Reading",
+            "subtype": "Ens160aqi",
+            "id": "aqi160",
+            "widget": "anydataDef",
+            "page": "Сенсоры",
+            "descr": "ENS160_AQI",
+            "int": 15,
+            "round": 0
+        }
+    ],
+    "about": {
+        "authorName": "Сергей Красников",
+        "authorContact": "@serghei63",
+        "authorGit": "",
+        "specialThanks": "",
+        "moduleName": "Ens160",
+        "moduleVersion": "1.0",
+        "usedRam": {
+            "esp32_4mb": 15,
+            "esp8266_4mb": 15
+        },
+        "subTypes": [
+            "Ens160tvoc",
+            "Ens160eco2",
+            "Ens160aqi"
+        ],
+        "title": "Датчик качества воздуха ENS160 (TVOC, eCO2, AQI)",
+        "moduleDesc": "Позволяет получить значения температуры и влажности с Ens160.",
+        "propInfo": {
+            "int": "Количество секунд между опросами датчика."
+        }
+    },
+    "defActive": false,
+    "usedLibs": {
+        "esp32*": [
+            "https://github.com/sparkfun/SparkFun_Indoor_Air_Quality_Sensor-ENS160_Arduino_Library"
+        ],
+        "esp82*": [
+            "https://github.com/sparkfun/SparkFun_Indoor_Air_Quality_Sensor-ENS160_Arduino_Library"
+        ]
+    }
+}
