@@ -1,0 +1,59 @@
+{
+    "menuSection": "sensors",
+    "configItem": [
+        {
+            "global": 0,
+            "name": "Hlw8032 Ток",
+            "type": "Reading",
+            "subtype": "Hlw8032i",
+            "id": "Hlw8032current",
+            "widget": "anydatamAmp",
+            "page": "HLW8032",
+            "descr": "8032 Датчик тока",
+            "int": 10
+        },
+        {
+            "global": 0,
+            "name": "Hlw8032 Напряжение",
+            "type": "Reading",
+            "subtype": "Hlw8032v",
+            "id": "Hlw8032voltage",
+            "widget": "anydataVlt",
+            "page": "HLW8032",
+            "descr": "8032 Датчик напряжения",
+            "int": 10
+        }
+    ],
+    "about": {
+        "authorName": "Serghei Crasnicov",
+        "authorContact": "https://t.me/Serghei63",
+        "authorGit": "https://github.com/Serghei63",
+        "specialThanks": "",
+        "moduleName": "Hlw8032",
+        "moduleVersion": "1.0",
+        "usedRam": {
+            "esp32_4mb": 15,
+            "esp8266_4mb": 15
+        },
+        "subTypes": [
+            "Hlw8032v",
+            "Hlw8032i"
+        ],
+        "title": "Ваттметр переменного тока HLW8032",
+        "moduleDesc": "Измеряет ток и напряжение на нагрузке по UART",
+        "propInfo": {
+            "int": "Количество секунд между опросами датчика."
+        }
+    },
+    "defActive": true,
+    "usedLibs": {
+        "esp32*": [
+            "https://github.com/Khaalidi/HLW8032"
+        ],
+        "esp8*": [
+            "https://github.com/Khaalidi/HLW8032"
+        ]
+    }
+}
+    
+    
