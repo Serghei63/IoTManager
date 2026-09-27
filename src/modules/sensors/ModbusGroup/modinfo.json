@@ -56,7 +56,7 @@
         "authorGit": "https://github.com/Serghei63",
         "specialThanks": "Mit4bmw",
         "moduleName": "ModbusGroup",
-        "moduleVersion": "1.0",
+        "moduleVersion": "1.1",
         "usedRam": {
             "esp32_4mb": 10,
             "esp8266_4mb": 10
@@ -87,7 +87,7 @@
             "round": "Количество знаков после запятой для округления",
             "onlyOnChange": "1 — генерировать событие только при изменении значения"
         },
-                "funcInfo": [
+        "funcInfo": [
             {
                 "name": "writeSingleCoils",
                 "descr": "Запись в койл (битовое поле) одного бита, вызывать из ModbusAsunc. Функция 0х05 протокола. Пример: mb.writeSingleCoils(1, \"0х0000\", 1)",

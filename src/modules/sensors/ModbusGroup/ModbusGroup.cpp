@@ -16,6 +16,9 @@ static bool _modbusDebug = false;
 static ModbusClientRTU *MB = nullptr;
 static uint32_t modBus_Token_count = 0;
 
+// Указатель на экземпляр клиента для отправки ивентов ошибок
+static IoTItem *_mbClientInstance = nullptr;
+
 #ifndef MODBUS_DIR_PIN_DEF
 #define MODBUS_DIR_PIN_DEF 4
 #endif
@@ -57,6 +60,8 @@ private:
 
 public:
     ModbusClientAsync(String parameters) : IoTItem(parameters) {
+        _mbClientInstance = this; // Сохраняем клиент для отправки событий ошибок
+
         _rx = (int8_t)jsonReadInt(parameters, "RX");
         _tx = (int8_t)jsonReadInt(parameters, "TX");
         MODBUS_DIR_PIN = (int8_t)jsonReadInt(parameters, "DIR_PIN");
@@ -74,22 +79,6 @@ public:
 
         instanceModBus(MODBUS_DIR_PIN);
         
-// Очищаем/останавливаем UART, если он уже был запущен ранее (при сохранении конфига)
-if (_modbusUART != nullptr) {
-    ((HardwareSerial *)_modbusUART)->end();
-} else {
-    _modbusUART = new HardwareSerial(MODBUS_UART_LINE);
-}
-
-if (_debug) {
-    SerialPrint("I", "ModbusClientAsync", "baud: " + String(_baud) + ", protocol: " + String(protocol, HEX) + ", RX: " + String(_rx) + ", TX: " + String(_tx));
-}
-
-// Теперь изменение буферов внутри prepareHardwareSerial пройдет без ошибок!
-RTUutils::prepareHardwareSerial((HardwareSerial &)*_modbusUART);
-((HardwareSerial *)_modbusUART)->begin(_baud, protocol, _rx, _tx);
-((HardwareSerial *)_modbusUART)->setTimeout(200);
-        // Очищаем/останавливаем UART, если он уже был запущен ранее (при сохранении конфига)
         if (_modbusUART != nullptr) {
             ((HardwareSerial *)_modbusUART)->end();
         } else {
@@ -97,10 +86,9 @@ RTUutils::prepareHardwareSerial((HardwareSerial &)*_modbusUART);
         }
 
         if (_debug) {
-         SerialPrint("I", "ModbusClientAsync", "baud: " + String(_baud) + ", protocol: " + String(protocol, HEX) + ", RX: " + String(_rx) + ", TX: " + String(_tx));
+            SerialPrint("I", "ModbusClientAsync", "baud: " + String(_baud) + ", protocol: " + String(protocol, HEX) + ", RX: " + String(_rx) + ", TX: " + String(_tx));
         }
 
-        // Теперь изменение буферов внутри prepareHardwareSerial пройдет без ошибок!
         RTUutils::prepareHardwareSerial((HardwareSerial &)*_modbusUART);
         ((HardwareSerial *)_modbusUART)->begin(_baud, protocol, _rx, _tx);
         ((HardwareSerial *)_modbusUART)->setTimeout(200);
@@ -111,7 +99,6 @@ RTUutils::prepareHardwareSerial((HardwareSerial &)*_modbusUART);
         MB->begin((HardwareSerial &)*_modbusUART);
     }
 
-    // ЕДИНАЯ РЕАЛИЗАЦИЯ SETVALUE ВНУТРИ КЛАССА
     void setValue(const String& valStr, bool genEvent = true) override {
         String val = valStr;
         val.trim();
@@ -123,7 +110,6 @@ RTUutils::prepareHardwareSerial((HardwareSerial &)*_modbusUART);
         int openBracket = val.indexOf('(');
         int closeBracket = val.lastIndexOf(')');
 
-        // Проверяем наличие скобок для вызова команды вида "writeSingleCoil(4, '0x0000', 1)"
         if (openBracket != -1 && closeBracket != -1 && closeBracket > openBracket) {
             String cmd = val.substring(0, openBracket);
             cmd.trim();
@@ -182,7 +168,6 @@ RTUutils::prepareHardwareSerial((HardwareSerial &)*_modbusUART);
         }
     }
 
-    // --- ОБРАБОТКА ВЫЗОВОВ ИЗ СЦЕНАРИЕВ ---
     IoTValue execute(String command, std::vector<IoTValue> &param) override {
         if (!MB) return {};
 
@@ -202,7 +187,6 @@ RTUutils::prepareHardwareSerial((HardwareSerial &)*_modbusUART);
             return item.isDecimal ? (uint8_t)item.valD : (uint8_t)item.valS.toInt();
         };
 
-        // 0x05: writeSingleCoil(addr, reg, state)
         if (command == "writeSingleCoil" && param.size() >= 3) {
             uint8_t addr = parseAddr(param[0]);
             uint16_t reg = parseRegister(param[1]);
@@ -231,7 +215,6 @@ RTUutils::prepareHardwareSerial((HardwareSerial &)*_modbusUART);
             return {};
         }
 
-        // 0x06: writeSingleRegister(addr, reg, value)
         else if (command == "writeSingleRegister" && param.size() >= 3) {
             uint8_t addr = parseAddr(param[0]);
             uint16_t reg = parseRegister(param[1]);
@@ -252,7 +235,6 @@ RTUutils::prepareHardwareSerial((HardwareSerial &)*_modbusUART);
             return {};
         }
 
-        // 0x0F: writeMultipleCoils(addr, reg, count, value)
         else if (command == "writeMultipleCoils" && param.size() >= 4) {
             uint8_t addr = parseAddr(param[0]);
             uint16_t reg = parseRegister(param[1]);
@@ -282,81 +264,83 @@ RTUutils::prepareHardwareSerial((HardwareSerial &)*_modbusUART);
             return {};
         }
 
-    else if (command == "writeMultipleRegisters" && param.size() >= 3) 
-    {
-      uint8_t addr = param[0].isDecimal ? (uint8_t)param[0].valD : (uint8_t)param[0].valS.toInt();
-      uint16_t reg = 0;
+        else if (command == "writeMultipleRegisters" && param.size() >= 3) {
+            uint8_t addr = parseAddr(param[0]);
+            uint16_t reg = parseRegister(param[1]);
 
-      if (param[1].valS.startsWith("0x") || param[1].valS.startsWith("0X")) {
-        reg = hexStringToUint16(param[1].valS);
-      } else {
-        reg = param[1].valS.toInt();
-      }
+            uint16_t numRegs = param.size() - 2;
+            std::vector<uint16_t> wData(numRegs);
 
-      // Динамически определяем количество передаваемых регистров
-      uint16_t numRegs = param.size() - 2;
-      std::vector<uint16_t> wData(numRegs);
+            String logMsg = "writeMultipleRegisters, addr: 0x" + String(addr, HEX) + 
+                            ", reg: 0x" + String(reg, HEX) + 
+                            ", count: " + String(numRegs) + " -> ";
 
-      String logMsg = "writeMultipleRegisters, addr: 0x" + String(addr, HEX) + 
-                      ", reg: 0x" + String(reg, HEX) + 
-                      ", count: " + String(numRegs) + " -> ";
+            for (size_t i = 0; i < numRegs; i++) {
+                if (param[i + 2].isDecimal) {
+                    wData[i] = (uint16_t)param[i + 2].valD;
+                } else {
+                    String s = param[i + 2].valS;
+                    s.trim();
+                    if (s.startsWith("0x") || s.startsWith("0X")) {
+                        wData[i] = hexStringToUint16(s);
+                    } else {
+                        wData[i] = (uint16_t)s.toInt();
+                    }
+                }
 
-      for (size_t i = 0; i < numRegs; i++) {
-        // Поддерживаем конвертацию как из float/int (valD), так и из строк (valS)
-        wData[i] = param[i + 2].isDecimal ? (uint16_t)param[i + 2].valD : (uint16_t)param[i + 2].valS.toInt();
-        if (_debug) {
-          logMsg += "val" + String(i + 1) + ": " + String(wData[i]) + " (0x" + String(wData[i], HEX) + ") ";
+                if (_debug) {
+                    logMsg += "val" + String(i + 1) + ": " + String(wData[i]) + " (0x" + String(wData[i], HEX) + ") ";
+                }
+            }
+
+            if (_debug) {
+                SerialPrint("I", "ModbusClientAsync", logMsg);
+            }
+
+            ModbusMessage msg;
+            msg.setMessage(addr, WRITE_MULT_REGISTERS, reg, numRegs, (uint8_t)(numRegs * 2), wData.data());
+
+            Error err = MB->addRequest(msg, (uint32_t)0);
+            
+            if (err != SUCCESS) {
+                ModbusError e(err);
+                SerialPrint("E", "ModbusClientAsync", "Ошибка 0x10: " + String((int)e, HEX) + " - " + String((const char *)e));
+            }
+
+            return {};
         }
-      }
 
-      if (_debug) {
-        SerialPrint("I", "ModbusClientAsync", logMsg);
-      }
+        else if (command == "resetEnergy" && param.size() >= 1) {
+            uint8_t addr = parseAddr(param[0]);
 
-      ModbusMessage msg;
-      // Передаем фактическое количество регистров (numRegs) и байт (numRegs * 2)
-      msg.setMessage(addr, WRITE_MULT_REGISTERS, reg, numRegs, (uint8_t)(numRegs * 2), wData.data());
+            modBus_Token_count++;
+            uint32_t token = modBus_Token_count;
 
-      Error err = MB->addRequest(msg, (uint32_t)0);
-      
-      if (err != SUCCESS) {
-        ModbusError e(err);
-        SerialPrint("E", "ModbusClientAsync", "Ошибка 0x10: " + String((int)e, HEX) + " - " + String((const char *)e));
-      }
+            if (_debug) {
+                SerialPrint("I", "ModbusClientAsync", "resetEnergy (0x42), addr: 0x" + String(addr, HEX));
+            }
 
-      return {};
-    }
-
-    // 0x42: resetEnergy(addr)
-else if (command == "resetEnergy" && param.size() >= 1) {
-    uint8_t addr = parseAddr(param[0]);
-
-    modBus_Token_count++;
-    uint32_t token = modBus_Token_count;
-
-    if (_debug) {
-        SerialPrint("I", "ModbusClientAsync", "resetEnergy (0x42), addr: 0x" + String(addr, HEX));
-    }
-
-    // В eModbus кастомная функция передается как тип uint8_t (0x42)
-    // Регистр и значение передаются как 0
-    Error err = MB->addRequest(token, addr, (uint8_t)0x42, 0, 0);
-    if (err != SUCCESS) {
-        ModbusError e(err);
-        SerialPrint("E", "ModbusClientAsync", "Error resetEnergy: " + String((int)e, HEX));
-    }
-    return {};
-}
+            Error err = MB->addRequest(token, addr, (uint8_t)0x42, 0, 0);
+            if (err != SUCCESS) {
+                ModbusError e(err);
+                SerialPrint("E", "ModbusClientAsync", "Error resetEnergy: " + String((int)e, HEX));
+            }
+            return {};
+        }
 
         return {};
     }
 
     void doByInterval() override {}
-    ~ModbusClientAsync() {}
+    ~ModbusClientAsync() {
+        if (_mbClientInstance == this) {
+            _mbClientInstance = nullptr;
+        }
+    }
 };
 
 // -------------------------------------------------------------
-// 2. КЛАСС РОДИТЕЛЯ (Поллер — 0x01, 0x02, 0x03, 0x04)
+// 2. КЛАСС РОДИТЕЛЯ (Поллер)
 // -------------------------------------------------------------
 class ModbusGroupPoll : public IoTItem {
 private:
@@ -364,8 +348,10 @@ private:
     uint16_t _reg = 0;
     uint8_t _countReg = 1;
     uint8_t _func = 0x03;
-    uint32_t _token = 0;
     
+    uint32_t _lastToken = 0;
+    bool _waitingResponse = false;
+
     std::vector<ModbusGroupSens*> _children;
 
 public:
@@ -391,47 +377,55 @@ public:
     }
 
     uint8_t getFunc() const { return _func; }
-
-    void addChild(ModbusGroupSens* child) {
-        _children.push_back(child);
-    }
+    void addChild(ModbusGroupSens* child) { _children.push_back(child); }
 
     void doByInterval() override {
         if (!MB) return;
 
+        if (_waitingResponse) {
+            if (_modbusDebug) {
+                SerialPrint("E", "ModbusGroupPoll", "Таймаут шины! Ответ не получен на token:" + String(_lastToken));
+            }
+            handleModBusGroupError(TIMEOUT, _lastToken);
+        }
+
         modBus_Token_count++;
-        _token = modBus_Token_count;
-        MBGroupTokenMap[_token] = this;
+        _lastToken = modBus_Token_count;
+        _waitingResponse = true;
+
+        MBGroupTokenMap[_lastToken] = this;
 
         if (_modbusDebug) {
-            SerialPrint("I", "ModbusGroupPoll", "Групповой опрос token:" + String(_token) + " (" + getID() + ")");
+            SerialPrint("I", "ModbusGroupPoll", "Групповой опрос token:" + String(_lastToken) + " (" + getID() + ")");
         }
 
         Error err = SUCCESS;
         switch (_func) {
             case 0x01:
-                err = MB->addRequest(_token, _addr, READ_COIL, _reg, _countReg);
+                err = MB->addRequest(_lastToken, _addr, READ_COIL, _reg, _countReg);
                 break;
             case 0x02:
-                err = MB->addRequest(_token, _addr, READ_DISCR_INPUT, _reg, _countReg);
+                err = MB->addRequest(_lastToken, _addr, READ_DISCR_INPUT, _reg, _countReg);
                 break;
             case 0x04:
-                err = MB->addRequest(_token, _addr, READ_INPUT_REGISTER, _reg, _countReg);
+                err = MB->addRequest(_lastToken, _addr, READ_INPUT_REGISTER, _reg, _countReg);
                 break;
             case 0x03:
             default:
-                err = MB->addRequest(_token, _addr, READ_HOLD_REGISTER, _reg, _countReg);
+                err = MB->addRequest(_lastToken, _addr, READ_HOLD_REGISTER, _reg, _countReg);
                 break;
         }
 
         if (err != SUCCESS) {
+            _waitingResponse = false;
             ModbusError e(err);
-            SerialPrint("E", "ModbusGroupPoll", "Ошибка отправки запроса: " + String((int)e, HEX) + " - " + String((const char *)e));
-            MBGroupTokenMap.erase(_token);
+            SerialPrint("E", "ModbusGroupPoll", "Ошибка добавления в очередь token " + String(_lastToken) + ": " + String((int)e, HEX));
+            handleModBusGroupError(err, _lastToken);
         }
     }
 
     void parseMB(ModbusMessage response);
+    void resetWaitingFlag() { _waitingResponse = false; }
 
     ~ModbusGroupPoll() {}
 };
@@ -473,96 +467,84 @@ public:
             SerialPrint("E", "ModbusGroupSens", "Ошибка: Родительский поллер не найден: " + parentId);
         }
     }
-void updateValueFromBuffer(ModbusMessage& response, uint8_t func) {
-    // В Modbus RTU ответе байты 0, 1, 2 — это Addr, Func, ByteCount.
-    // Полезная дата начинается с индекса 3.
-    // Если у вас в _offset хранится адрес регистра (например, 3 для тока):
-    // uint16_t regIndex = _offset - _parentPollReg; 
-    // Если в _offset хранится порядковый номер регистра от начала опроса (0, 3, 8...):
-    uint16_t regIndex = _offset; 
 
-    uint16_t byteOffset = 3 + (regIndex * 2);
+    void updateValueFromBuffer(ModbusMessage& response, uint8_t func) {
+        uint16_t regIndex = _offset; 
+        uint16_t byteOffset = 3 + (regIndex * 2);
 
-    // Проверка на выход за пределы фактически полученного пакета
-    uint8_t requiredBytes = (_count > 0) ? (_count * 2) : 2;
-    if ((byteOffset + requiredBytes) > response.size()) {
-        return; 
-    }
-
-    float currentVal = 0.0f;
-
-    if (func == 0x01 || func == 0x02) {
-        // Логика Coils / Discrete Inputs
-        uint16_t byteIdx = 3 + (_offset / 8);
-        uint8_t bitIdx   = _offset % 8;
-        if (byteIdx < response.size()) {
-            currentVal = (response[byteIdx] & (1 << bitIdx)) ? 1.0f : 0.0f;
+        uint8_t requiredBytes = (_count > 0) ? (_count * 2) : 2;
+        if ((byteOffset + requiredBytes) > response.size()) {
+            return; 
         }
-    } 
-    else {
-        if (_isFloat && _count == 2) {
-            // Если прибор отдаст честный float32 (IEEE-754)
-            union {
-                uint32_t b32;
-                float f;
-            } u;
-            u.b32 = ((uint32_t)response[byteOffset]     << 24) |
-                    ((uint32_t)response[byteOffset + 1] << 16) |
-                    ((uint32_t)response[byteOffset + 2] << 8)  |
-                     (uint32_t)response[byteOffset + 3];
-            currentVal = u.f;
-        } 
-        else if (_count == 2) {
-            // 32-битное целое число (uint32_t / Long, например kWh)
-            uint32_t rawVal = ((uint32_t)response[byteOffset]     << 24) |
-                              ((uint32_t)response[byteOffset + 1] << 16) |
-                              ((uint32_t)response[byteOffset + 2] << 8)  |
-                               (uint32_t)response[byteOffset + 3];
-            currentVal = (float)rawVal;
+
+        float currentVal = 0.0f;
+
+        if (func == 0x01 || func == 0x02) {
+            uint16_t byteIdx = 3 + (_offset / 8);
+            uint8_t bitIdx   = _offset % 8;
+            if (byteIdx < response.size()) {
+                currentVal = (response[byteIdx] & (1 << bitIdx)) ? 1.0f : 0.0f;
+            }
         } 
         else {
-            // 16-битное целое число (uint16_t / Int, например U, I, P, F)
-            uint16_t rawVal = ((uint16_t)response[byteOffset] << 8) |
-                               (uint16_t)response[byteOffset + 1];
-            
-            // Если значение может быть отрицательным (например, мощность при отдаче в сеть)
-            // currentVal = (int16_t)rawVal; 
-            currentVal = (float)rawVal;
+            if (_isFloat && _count == 2) {
+                union {
+                    uint32_t b32;
+                    float f;
+                } u;
+                u.b32 = ((uint32_t)response[byteOffset]     << 24) |
+                        ((uint32_t)response[byteOffset + 1] << 16) |
+                        ((uint32_t)response[byteOffset + 2] << 8)  |
+                         (uint32_t)response[byteOffset + 3];
+                currentVal = u.f;
+            } 
+            else if (_count == 2) {
+                uint32_t rawVal = ((uint32_t)response[byteOffset]     << 24) |
+                                  ((uint32_t)response[byteOffset + 1] << 16) |
+                                  ((uint32_t)response[byteOffset + 2] << 8)  |
+                                   (uint32_t)response[byteOffset + 3];
+                currentVal = (float)rawVal;
+            } 
+            else {
+                uint16_t rawVal = ((uint16_t)response[byteOffset] << 8) |
+                                   (uint16_t)response[byteOffset + 1];
+                currentVal = (float)rawVal;
+            }
+
+            if (_div != 0.0f) {
+                currentVal /= _div;
+            }
         }
 
-        if (_div != 0.0f) {
-            currentVal /= _div;
+        if (_round > 0) {
+            float factor = pow(10, _round);
+            currentVal = round(currentVal * factor) / factor;
         }
-    }
 
-    // Округление результата
-    if (_round > 0) {
-        float factor = pow(10, _round);
-        currentVal = round(currentVal * factor) / factor;
-    }
+        if (_onlyOnChange) {
+            if (currentVal == _lastVal) return;
+            _lastVal = currentVal;
+        }
 
-    // Проверка изменения значения (оповещаем только при смене)
-    if (_onlyOnChange) {
-        if (currentVal == _lastVal) return;
-        _lastVal = currentVal;
+        regEvent(currentVal, "ModbusGroupSens");
     }
-
-    regEvent(currentVal, "ModbusGroupSens");
-}
 
     void doByInterval() override {}
     ~ModbusGroupSens() {}
 };
 
-// Передача ответа в дочерние сенсоры
+// -------------------------------------------------------------
+// ВЫНОСНАЯ РЕАЛИЗАЦИЯ МЕТОДА parseMB
+// -------------------------------------------------------------
 void ModbusGroupPoll::parseMB(ModbusMessage response) {
+    _waitingResponse = false;
     for (auto child : _children) {
         child->updateValueFromBuffer(response, _func);
     }
 }
 
 // -------------------------------------------------------------
-// КОЛБЭКИ ОБРАБОТКИ ОТВЕТОВ EMODBUS
+// КОЛБЭКИ ОБРАБОТКИ ОТВЕТОВ EMODBUS И ОШИБОК
 // -------------------------------------------------------------
 void handleModBusGroupData(ModbusMessage response, uint32_t token) {
     if (_modbusDebug) {
@@ -573,6 +555,7 @@ void handleModBusGroupData(ModbusMessage response, uint32_t token) {
         }
         SerialPrint("I", "ModbusGroup", "Ответ token " + String(token) + " (" + String(response.size()) + " байт): " + hexBuf);
     }
+
     if (MBGroupTokenMap.count(token)) {
         MBGroupTokenMap[token]->parseMB(response);
         MBGroupTokenMap.erase(token);
@@ -582,8 +565,17 @@ void handleModBusGroupData(ModbusMessage response, uint32_t token) {
 void handleModBusGroupError(Error error, uint32_t token) {
     ModbusError me(error);
     SerialPrint("E", "ModbusGroup", "Ошибка ответа token " + String(token) + ": " + String((int)me, HEX) + " - " + String((const char *)me));
+
     if (MBGroupTokenMap.count(token)) {
+        if (MBGroupTokenMap[token]) {
+            MBGroupTokenMap[token]->resetWaitingFlag();
+        }
         MBGroupTokenMap.erase(token);
+    }
+
+    // Отправляем событие ошибки строго клиенту (mb16)
+    if (_mbClientInstance) {
+        _mbClientInstance->regEvent(1.0f, "mb_error");
     }
 }
 
