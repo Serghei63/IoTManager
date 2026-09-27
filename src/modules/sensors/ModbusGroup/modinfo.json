@@ -56,7 +56,7 @@
         "authorGit": "https://github.com/Serghei63",
         "specialThanks": "Mit4bmw",
         "moduleName": "ModbusGroup",
-        "moduleVersion": "1.1",
+        "moduleVersion": "2.0",
         "usedRam": {
             "esp32_4mb": 10,
             "esp8266_4mb": 10

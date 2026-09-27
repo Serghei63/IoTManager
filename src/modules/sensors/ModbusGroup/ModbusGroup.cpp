@@ -214,17 +214,20 @@ public:
             }
             return {};
         }
-
+        
         else if (command == "writeSingleRegister" && param.size() >= 3) {
             uint8_t addr = parseAddr(param[0]);
             uint16_t reg = parseRegister(param[1]);
-            uint16_t val = param[2].isDecimal ? (uint16_t)param[2].valD : (uint16_t)param[2].valS.toInt();
+            
+            // Приводим к int16_t, а затем к uint16_t (для сохранения знакового бита)
+            int32_t valInt = param[2].isDecimal ? (int32_t)param[2].valD : param[2].valS.toInt();
+            uint16_t val = (uint16_t)(int16_t)valInt;
 
             modBus_Token_count++;
             uint32_t token = modBus_Token_count;
 
             if (_debug) {
-                SerialPrint("I", "ModbusClientAsync", "writeSingleRegister, addr: 0x" + String(addr, HEX) + ", reg: 0x" + String(reg, HEX) + ", val: " + String(val));
+                SerialPrint("I", "ModbusClientAsync", "writeSingleRegister, addr: 0x" + String(addr, HEX) + ", reg: 0x" + String(reg, HEX) + ", val: " + String(valInt) + " (0x" + String(val, HEX) + ")");
             }
 
             Error err = MB->addRequest(token, addr, WRITE_HOLD_REGISTER, reg, val);
@@ -233,7 +236,7 @@ public:
                 SerialPrint("E", "ModbusClientAsync", "Error writeSingleRegister: " + String((int)e, HEX));
             }
             return {};
-        }
+        }        
 
         else if (command == "writeMultipleCoils" && param.size() >= 4) {
             uint8_t addr = parseAddr(param[0]);
@@ -264,32 +267,51 @@ public:
             return {};
         }
 
-        else if (command == "writeMultipleRegisters" && param.size() >= 3) {
+else if (command == "writeMultipleRegisters" && param.size() >= 3) {
             uint8_t addr = parseAddr(param[0]);
             uint16_t reg = parseRegister(param[1]);
 
-            uint16_t numRegs = param.size() - 2;
-            std::vector<uint16_t> wData(numRegs);
+            std::vector<uint16_t> wData;
 
+            // Если передано 1 число и оно дробное (float, например -1.5)
+            if (param.size() == 3 && param[2].isDecimal && (param[2].valD != (float)(int32_t)param[2].valD)) {
+                union {
+                    float f;
+                    uint16_t w[2];
+                } u;
+                u.f = param[2].valD; // Float32 сохраняет знак автоматически
+
+                wData.push_back(u.w[1]); // High Word
+                wData.push_back(u.w[0]); // Low Word
+            } 
+            else {
+                // Массив целых чисел (поддержка отрицательных int16_t)
+                uint16_t numRegs = param.size() - 2;
+                wData.resize(numRegs);
+
+                for (size_t i = 0; i < numRegs; i++) {
+                    if (param[i + 2].isDecimal) {
+                        wData[i] = (uint16_t)(int16_t)param[i + 2].valD;
+                    } else {
+                        String s = param[i + 2].valS;
+                        s.trim();
+                        if (s.startsWith("0x") || s.startsWith("0X")) {
+                            wData[i] = hexStringToUint16(s);
+                        } else {
+                            wData[i] = (uint16_t)(int16_t)s.toInt();
+                        }
+                    }
+                }
+            }
+
+            uint16_t numRegs = wData.size();
             String logMsg = "writeMultipleRegisters, addr: 0x" + String(addr, HEX) + 
                             ", reg: 0x" + String(reg, HEX) + 
                             ", count: " + String(numRegs) + " -> ";
 
             for (size_t i = 0; i < numRegs; i++) {
-                if (param[i + 2].isDecimal) {
-                    wData[i] = (uint16_t)param[i + 2].valD;
-                } else {
-                    String s = param[i + 2].valS;
-                    s.trim();
-                    if (s.startsWith("0x") || s.startsWith("0X")) {
-                        wData[i] = hexStringToUint16(s);
-                    } else {
-                        wData[i] = (uint16_t)s.toInt();
-                    }
-                }
-
                 if (_debug) {
-                    logMsg += "val" + String(i + 1) + ": " + String(wData[i]) + " (0x" + String(wData[i], HEX) + ") ";
+                    logMsg += "val" + String(i + 1) + ": (0x" + String(wData[i], HEX) + ") ";
                 }
             }
 
@@ -486,7 +508,7 @@ public:
                 currentVal = (response[byteIdx] & (1 << bitIdx)) ? 1.0f : 0.0f;
             }
         } 
-        else {
+else {
             if (_isFloat && _count == 2) {
                 union {
                     uint32_t b32;
@@ -496,25 +518,28 @@ public:
                         ((uint32_t)response[byteOffset + 1] << 16) |
                         ((uint32_t)response[byteOffset + 2] << 8)  |
                          (uint32_t)response[byteOffset + 3];
-                currentVal = u.f;
+                currentVal = u.f; // Для float знак распарсится сам
             } 
             else if (_count == 2) {
-                uint32_t rawVal = ((uint32_t)response[byteOffset]     << 24) |
-                                  ((uint32_t)response[byteOffset + 1] << 16) |
-                                  ((uint32_t)response[byteOffset + 2] << 8)  |
-                                   (uint32_t)response[byteOffset + 3];
+                // Знаковый Int32 (2 регистра)
+                int32_t rawVal = ((uint32_t)response[byteOffset]     << 24) |
+                                 ((uint32_t)response[byteOffset + 1] << 16) |
+                                 ((uint32_t)response[byteOffset + 2] << 8)  |
+                                  (uint32_t)response[byteOffset + 3];
                 currentVal = (float)rawVal;
             } 
             else {
-                uint16_t rawVal = ((uint16_t)response[byteOffset] << 8) |
-                                   (uint16_t)response[byteOffset + 1];
+                // Знаковый Int16 (1 регистр) — кастуем к int16_t!
+                uint16_t uVal = ((uint16_t)response[byteOffset] << 8) |
+                                 (uint16_t)response[byteOffset + 1];
+                int16_t rawVal = (int16_t)uVal; 
                 currentVal = (float)rawVal;
             }
 
             if (_div != 0.0f) {
                 currentVal /= _div;
             }
-        }
+        }        
 
         if (_round > 0) {
             float factor = pow(10, _round);
