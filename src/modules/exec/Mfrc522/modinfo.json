@@ -10,8 +10,8 @@
             "widget": "anydataDef",
             "page": "RFID",
             "descr": "Значение",
-            "bus": "i2c",
-            "addr": "0x28",
+            "bus": "spi",
+            "addr": "",
             "cs": 5,
             "rst": 22,
             "debug": 1

@@ -123,7 +123,7 @@ class Mfrc522Item : public IoTItem {
             // Передаем событие только при изменении метки
             if (currentUidNum != _lastUidNum) {
                 _lastUidNum = currentUidNum;
-                value.valD = (double)_lastUidNum; // Записываем числовое значение (как в RCswitch)
+                value.valD = (double)_lastUidNum; // Записываем числовое значение
 
                 if (_debug) Serial.printf("[RFID] Tag Read DEC: %u\n", _lastUidNum);
 
