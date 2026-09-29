@@ -23,7 +23,7 @@
         "authorGit": "",
         "specialThanks": "AI Gemini",
         "moduleName": "Mfrc522",
-        "moduleVersion": "0.0",
+        "moduleVersion": "1.0",
         "usedRam": {
             "esp32_4mb": 15,
             "esp8266_4mb": 15
