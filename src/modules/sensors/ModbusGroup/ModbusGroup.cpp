@@ -214,13 +214,25 @@ public:
             }
             return {};
         }
-        
+
         else if (command == "writeSingleRegister" && param.size() >= 3) {
             uint8_t addr = parseAddr(param[0]);
             uint16_t reg = parseRegister(param[1]);
             
-            // Приводим к int16_t, а затем к uint16_t (для сохранения знакового бита)
-            int32_t valInt = param[2].isDecimal ? (int32_t)param[2].valD : param[2].valS.toInt();
+            // Универсальное и безопасное получение int16
+            int32_t valInt = 0;
+            if (param[2].isDecimal) {
+                valInt = (int32_t)param[2].valD;
+            } else {
+                String s = param[2].valS;
+                s.trim();
+                if (s.startsWith("0x") || s.startsWith("0X")) {
+                    valInt = hexStringToUint16(s);
+                } else {
+                    valInt = s.toInt();
+                }
+            }
+
             uint16_t val = (uint16_t)(int16_t)valInt;
 
             modBus_Token_count++;
@@ -236,7 +248,74 @@ public:
                 SerialPrint("E", "ModbusClientAsync", "Error writeSingleRegister: " + String((int)e, HEX));
             }
             return {};
-        }        
+        }
+
+        else if (command == "writeMultipleRegisters" && param.size() >= 3) {
+            uint8_t addr = parseAddr(param[0]);
+            uint16_t reg = parseRegister(param[1]);
+
+            std::vector<uint16_t> wData;
+
+            // Если передан ровно 1 аргумент значения и он является float-числом (например, -1.5)
+            if (param.size() == 3 && param[2].isDecimal && (param[2].valD != (float)(int32_t)param[2].valD)) {
+                union {
+                    float f;
+                    uint16_t w[2];
+                } u;
+                u.f = param[2].valD;
+
+                wData.push_back(u.w[1]); // High Word
+                wData.push_back(u.w[0]); // Low Word
+            } 
+            else {
+                // Разбор массива целых чисел / переменных (включая отрицательные)
+                uint16_t numRegs = param.size() - 2;
+                wData.resize(numRegs);
+
+                for (size_t i = 0; i < numRegs; i++) {
+                    int32_t valInt = 0;
+                    if (param[i + 2].isDecimal) {
+                        valInt = (int32_t)param[i + 2].valD;
+                    } else {
+                        String s = param[i + 2].valS;
+                        s.trim();
+                        if (s.startsWith("0x") || s.startsWith("0X")) {
+                            valInt = hexStringToUint16(s);
+                        } else {
+                            valInt = s.toInt();
+                        }
+                    }
+                    wData[i] = (uint16_t)(int16_t)valInt;
+                }
+            }
+
+            uint16_t numRegs = wData.size();
+            String logMsg = "writeMultipleRegisters, addr: 0x" + String(addr, HEX) + 
+                            ", reg: 0x" + String(reg, HEX) + 
+                            ", count: " + String(numRegs) + " -> ";
+
+            for (size_t i = 0; i < numRegs; i++) {
+                if (_debug) {
+                    logMsg += "val" + String(i + 1) + ": " + String((int16_t)wData[i]) + " (0x" + String(wData[i], HEX) + ") ";
+                }
+            }
+
+            if (_debug) {
+                SerialPrint("I", "ModbusClientAsync", logMsg);
+            }
+
+            ModbusMessage msg;
+            msg.setMessage(addr, WRITE_MULT_REGISTERS, reg, numRegs, (uint8_t)(numRegs * 2), wData.data());
+
+            Error err = MB->addRequest(msg, (uint32_t)0);
+            
+            if (err != SUCCESS) {
+                ModbusError e(err);
+                SerialPrint("E", "ModbusClientAsync", "Ошибка 0x10: " + String((int)e, HEX) + " - " + String((const char *)e));
+            }
+
+            return {};
+        }       
 
         else if (command == "writeMultipleCoils" && param.size() >= 4) {
             uint8_t addr = parseAddr(param[0]);
@@ -264,71 +343,6 @@ public:
                 ModbusError e(err);
                 SerialPrint("E", "ModbusClientAsync", "Error writeMultipleCoils: " + String((int)e, HEX));
             }
-            return {};
-        }
-
-else if (command == "writeMultipleRegisters" && param.size() >= 3) {
-            uint8_t addr = parseAddr(param[0]);
-            uint16_t reg = parseRegister(param[1]);
-
-            std::vector<uint16_t> wData;
-
-            // Если передано 1 число и оно дробное (float, например -1.5)
-            if (param.size() == 3 && param[2].isDecimal && (param[2].valD != (float)(int32_t)param[2].valD)) {
-                union {
-                    float f;
-                    uint16_t w[2];
-                } u;
-                u.f = param[2].valD; // Float32 сохраняет знак автоматически
-
-                wData.push_back(u.w[1]); // High Word
-                wData.push_back(u.w[0]); // Low Word
-            } 
-            else {
-                // Массив целых чисел (поддержка отрицательных int16_t)
-                uint16_t numRegs = param.size() - 2;
-                wData.resize(numRegs);
-
-                for (size_t i = 0; i < numRegs; i++) {
-                    if (param[i + 2].isDecimal) {
-                        wData[i] = (uint16_t)(int16_t)param[i + 2].valD;
-                    } else {
-                        String s = param[i + 2].valS;
-                        s.trim();
-                        if (s.startsWith("0x") || s.startsWith("0X")) {
-                            wData[i] = hexStringToUint16(s);
-                        } else {
-                            wData[i] = (uint16_t)(int16_t)s.toInt();
-                        }
-                    }
-                }
-            }
-
-            uint16_t numRegs = wData.size();
-            String logMsg = "writeMultipleRegisters, addr: 0x" + String(addr, HEX) + 
-                            ", reg: 0x" + String(reg, HEX) + 
-                            ", count: " + String(numRegs) + " -> ";
-
-            for (size_t i = 0; i < numRegs; i++) {
-                if (_debug) {
-                    logMsg += "val" + String(i + 1) + ": (0x" + String(wData[i], HEX) + ") ";
-                }
-            }
-
-            if (_debug) {
-                SerialPrint("I", "ModbusClientAsync", logMsg);
-            }
-
-            ModbusMessage msg;
-            msg.setMessage(addr, WRITE_MULT_REGISTERS, reg, numRegs, (uint8_t)(numRegs * 2), wData.data());
-
-            Error err = MB->addRequest(msg, (uint32_t)0);
-            
-            if (err != SUCCESS) {
-                ModbusError e(err);
-                SerialPrint("E", "ModbusClientAsync", "Ошибка 0x10: " + String((int)e, HEX) + " - " + String((const char *)e));
-            }
-
             return {};
         }
 
