@@ -612,7 +612,7 @@ void handleModBusGroupError(Error error, uint32_t token) {
         MBGroupTokenMap.erase(token);
     }
 
-    // Отправляем событие ошибки строго клиенту (mb16)
+    // Отправляем событие ошибки строго клиенту
     if (_mbClientInstance) {
         _mbClientInstance->regEvent(1.0f, "mb_error");
     }
