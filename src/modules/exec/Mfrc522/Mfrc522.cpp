@@ -8,7 +8,6 @@
 #include <MFRC522DriverPinSimple.h>
 #include <MFRC522Debug.h>
 
-
 class Mfrc522Item : public IoTItem {
    private:
     String _bus = "i2c";
@@ -25,10 +24,10 @@ class Mfrc522Item : public IoTItem {
     MFRC522Driver* _driver = nullptr;
     MFRC522* _mfrc522 = nullptr;
 
-    String _lastUid = "";
+    uint32_t _lastUidNum = 0;
     unsigned long _lastScanTime = 0;
     const unsigned long SCAN_INTERVAL = 250;  // Опрос раз в 250 мс
-    const unsigned long CLEAR_TIMEOUT = 1500; // Автосброс UID через 1.5 сек после убирания метки
+    const unsigned long CLEAR_TIMEOUT = 1500; // Автосброс в 0 через 1.5 сек после убирания метки
 
    public:
     Mfrc522Item(String parameters) : IoTItem(parameters) {
@@ -52,14 +51,20 @@ class Mfrc522Item : public IoTItem {
             jsonRead(parameters, "rst", _rstPin);
 
             if (_csPin != -1) {
-                // Создаем специальный объект пина CS для MFRC522v2
-                _csPinObj = new MFRC522DriverPinSimple((uint8_t)_csPin);
+                // Инициализируем шину SPI
+                SPI.begin();
 
+                // Аппаратный сброс RC522 при наличии RST пина
                 if (_rstPin != -1) {
                     _rstPinObj = new MFRC522DriverPinSimple((uint8_t)_rstPin);
+                    pinMode(_rstPin, OUTPUT);
+                    digitalWrite(_rstPin, LOW);
+                    delay(50);
+                    digitalWrite(_rstPin, HIGH);
+                    delay(50);
                 }
 
-                // Инициализируем SPI драйвер
+                _csPinObj = new MFRC522DriverPinSimple((uint8_t)_csPin);
                 _driver = new MFRC522DriverSPI(*_csPinObj, SPI);
             } else {
                 if (_debug) Serial.println(F("[RFID] ERROR: CS Pin not set for SPI!"));
@@ -69,47 +74,76 @@ class Mfrc522Item : public IoTItem {
         if (_driver) {
             _mfrc522 = new MFRC522(*_driver);
             _mfrc522->PCD_Init();
-            if (_debug) Serial.printf("[RFID] Initialized via %s\n", _bus.c_str());
+
+            if (_debug) {
+                Serial.printf("[RFID] Initialized via %s\n", _bus.c_str());
+                Serial.print(F("[RFID] Firmware Version: "));
+                MFRC522Debug::PCD_DumpVersionToSerial(*_mfrc522, Serial);
+            }
         }
     }
 
     void loop() override {
         if (!_mfrc522) return;
 
-        // Не спамим шину, проверяем по таймеру
-        if (millis() - _lastScanTime < SCAN_INTERVAL) return;
-        _lastScanTime = millis();
+        unsigned long now = millis();
 
-        // Проверяем наличие карты
+        // Не спамим шину, проверяем по интервалу
+        if (now - _lastScanTime < SCAN_INTERVAL) return;
+
+        bool cardPresent = false;
+
+        // 1. Проверяем появление НОВОЙ метки
         if (_mfrc522->PICC_IsNewCardPresent() && _mfrc522->PICC_ReadCardSerial()) {
-            String currentUid = "";
+            cardPresent = true;
+        } 
+        // 2. Если новая не найдена, но метка была ранее — проверяем, лежит ли она всё еще
+        else if (_lastUidNum != 0) {
+            byte bufferATQA[2];
+            byte bufferSize = sizeof(bufferATQA);
+
+            // Будим метку в поле
+            MFRC522::StatusCode status = _mfrc522->PICC_WakeupA(bufferATQA, &bufferSize);
+            if (status == MFRC522::StatusCode::STATUS_OK || status == 0) {
+                if (_mfrc522->PICC_ReadCardSerial()) {
+                    cardPresent = true;
+                }
+            }
+        }
+
+        if (cardPresent) {
+            _lastScanTime = now; // Фиксируем время успешного чтения
+
+            // Конвертируем 4 байта UID в 32-битное число (DEC)
+            uint32_t currentUidNum = 0;
             for (byte i = 0; i < _mfrc522->uid.size; i++) {
-                if (i > 0) currentUid += ":";
-                if (_mfrc522->uid.uidByte[i] < 0x10) currentUid += "0";
-                currentUid += String(_mfrc522->uid.uidByte[i], HEX);
-            }
-            currentUid.toUpperCase();
-
-            if (currentUid != _lastUid) {
-                _lastUid = currentUid;
-                value.valS = _lastUid;
-
-                if (_debug) Serial.printf("[RFID] Tag Read: %s\n", _lastUid.c_str());
-
-                // Передаем новое значение и событие в сценарии
-                regEvent(value.valS, "RfidTag");
+                currentUidNum = (currentUidNum << 8) | _mfrc522->uid.uidByte[i];
             }
 
-            // Останавливаем работу с текущей меткой
+            // Передаем событие только при изменении метки
+            if (currentUidNum != _lastUidNum) {
+                _lastUidNum = currentUidNum;
+                value.valD = (double)_lastUidNum; // Записываем числовое значение
+
+                if (_debug) Serial.printf("[RFID] Tag Read DEC: %u\n", _lastUidNum);
+
+                // Регистрируем событие по ID элемента из JSON-конфига
+                regEvent(value.valD, _id);
+            }
+
+            // Усыпляем метку до следующего цикла опроса
             _mfrc522->PICC_HaltA();
             _mfrc522->PCD_StopCrypto1();
+
         } else {
-            // Если метку убрали — сбрасываем значение через таймаут
-            if (_lastUid != "" && (millis() - _lastScanTime > CLEAR_TIMEOUT)) {
-                _lastUid = "";
-                value.valS = "";
-                regEvent("", "RfidTagCleared");
-                if (_debug) Serial.println(F("[RFID] Tag Removed"));
+            // Метка убрана, сбрасываем в 0 по таймауту
+            if (_lastUidNum != 0 && (now - _lastScanTime > CLEAR_TIMEOUT)) {
+                _lastUidNum = 0;
+                value.valD = 0;
+
+                if (_debug) Serial.println(F("[RFID] Tag Removed (Reset to 0)"));
+
+                regEvent(value.valD, _id);
             }
         }
     }
@@ -128,12 +162,10 @@ void* getAPI_Mfrc522(String subtype, String param) {
         jsonRead(param, "bus", bus);
         bus.toLowerCase();
 
-        // Если выбрана шина I2C, проверяем заполненность адреса
         if (bus == "i2c") {
             String addr;
             jsonRead(param, "addr", addr);
 
-            // Если адрес пустой — запускаем сканер и отменяем создание
             if (addr == "") {
                 scanI2C();
                 return nullptr;
