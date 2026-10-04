@@ -504,7 +504,24 @@ public:
         }
     }
 
-    void updateValueFromBuffer(ModbusMessage& response, uint8_t func) {
+void updateValueFromBuffer(ModbusMessage& response, uint8_t func) {
+    float currentVal = 0.0f;
+
+    if (func == 0x01 || func == 0x02) {
+        // В eModbus байты данных начинаются с индекса 3 (после Addr, Func, ByteCount)
+        uint16_t byteIdx = 3 + (_offset / 8);
+        uint8_t bitIdx   = _offset % 8;
+
+        if (byteIdx < response.size()) {
+            currentVal = (response[byteIdx] & (1 << bitIdx)) ? 1.0f : 0.0f;
+        } else {
+            if (_modbusDebug) {
+                SerialPrint("E", "ModbusGroupSens", "Ошибка: byteIdx " + String(byteIdx) + " выходит за предел response.size() " + String(response.size()));
+            }
+            return;
+        }
+    } 
+    else {
         uint16_t regIndex = _offset; 
         uint16_t byteOffset = 3 + (regIndex * 2);
 
@@ -513,60 +530,49 @@ public:
             return; 
         }
 
-        float currentVal = 0.0f;
-
-        if (func == 0x01 || func == 0x02) {
-            uint16_t byteIdx = 3 + (_offset / 8);
-            uint8_t bitIdx   = _offset % 8;
-            if (byteIdx < response.size()) {
-                currentVal = (response[byteIdx] & (1 << bitIdx)) ? 1.0f : 0.0f;
-            }
+        if (_isFloat && _count == 2) {
+            union {
+                uint32_t b32;
+                float f;
+            } u;
+            u.b32 = ((uint32_t)response[byteOffset]     << 24) |
+                    ((uint32_t)response[byteOffset + 1] << 16) |
+                    ((uint32_t)response[byteOffset + 2] << 8)  |
+                     (uint32_t)response[byteOffset + 3];
+            currentVal = u.f;
         } 
-else {
-            if (_isFloat && _count == 2) {
-                union {
-                    uint32_t b32;
-                    float f;
-                } u;
-                u.b32 = ((uint32_t)response[byteOffset]     << 24) |
-                        ((uint32_t)response[byteOffset + 1] << 16) |
-                        ((uint32_t)response[byteOffset + 2] << 8)  |
-                         (uint32_t)response[byteOffset + 3];
-                currentVal = u.f; // Для float знак распарсится сам
-            } 
-            else if (_count == 2) {
-                // Знаковый Int32 (2 регистра)
-                int32_t rawVal = ((uint32_t)response[byteOffset]     << 24) |
-                                 ((uint32_t)response[byteOffset + 1] << 16) |
-                                 ((uint32_t)response[byteOffset + 2] << 8)  |
-                                  (uint32_t)response[byteOffset + 3];
-                currentVal = (float)rawVal;
-            } 
-            else {
-                // Знаковый Int16 (1 регистр) — кастуем к int16_t!
-                uint16_t uVal = ((uint16_t)response[byteOffset] << 8) |
-                                 (uint16_t)response[byteOffset + 1];
-                int16_t rawVal = (int16_t)uVal; 
-                currentVal = (float)rawVal;
-            }
-
-            if (_div != 0.0f) {
-                currentVal /= _div;
-            }
-        }        
-
-        if (_round > 0) {
-            float factor = pow(10, _round);
-            currentVal = round(currentVal * factor) / factor;
+        else if (_count == 2) {
+            int32_t rawVal = ((uint32_t)response[byteOffset]     << 24) |
+                             ((uint32_t)response[byteOffset + 1] << 16) |
+                             ((uint32_t)response[byteOffset + 2] << 8)  |
+                              (uint32_t)response[byteOffset + 3];
+            currentVal = (float)rawVal;
+        } 
+        else {
+            uint16_t uVal = ((uint16_t)response[byteOffset] << 8) |
+                             (uint16_t)response[byteOffset + 1];
+            int16_t rawVal = (int16_t)uVal; 
+            currentVal = (float)rawVal;
         }
 
-        if (_onlyOnChange) {
-            if (currentVal == _lastVal) return;
-            _lastVal = currentVal;
+        if (_div != 0.0f) {
+            currentVal /= _div;
         }
+    }        
 
-        regEvent(currentVal, "ModbusGroupSens");
+    if (_round > 0) {
+        float factor = pow(10, _round);
+        currentVal = round(currentVal * factor) / factor;
     }
+
+    if (_onlyOnChange) {
+        if (currentVal == _lastVal) return;
+        _lastVal = currentVal;
+    }
+
+    // ВАЖНО: передаём _id элемента для корректного ивента в сценариях
+    regEvent(currentVal, _id);
+}
 
     void doByInterval() override {}
     ~ModbusGroupSens() {}
