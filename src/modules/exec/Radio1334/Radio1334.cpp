@@ -26,10 +26,11 @@ private:
     String _stationName = "Stopped"; 
     
     // Компоненты ESP8266Audio
-    AudioFileSourceHTTPStream* _file    = nullptr;
-    AudioFileSourceBuffer*     _buff    = nullptr;
-    AudioGenerator*            _decoder = nullptr;
-    AudioOutputI2S*            _out     = nullptr;
+    AudioFileSourceHTTPStream* _file      = nullptr;
+    AudioFileSourceBuffer*     _buff      = nullptr;
+    AudioGenerator*            _decoder   = nullptr;
+    AudioOutputI2S*            _out       = nullptr;
+    uint8_t*                   _psramBuf  = nullptr; // Выделенный буфер в PSRAM
     
     TaskHandle_t _radioTaskHandle = nullptr;
 
@@ -46,59 +47,73 @@ public:
         vTaskDelay(pdMS_TO_TICKS(200)); 
 
         while (true) {
-            // Подключение к новому потоку
+            // Подключение к новому потоку или авто-реконнект
             if (instance->_needsConnect) {
                 instance->_needsConnect = false;
-                instance->stopAudioPipeline(); // Чистим старый поток перед запуском
+                instance->stopAudioPipeline(); // Очищаем старый поток перед запуском
 
                 vTaskDelay(pdMS_TO_TICKS(150)); // Пауза для дефрагментации Heap
 
-                Serial.printf("[UDA1334 Task] Connecting to: %s\n", instance->_url.c_str());
-                
-                instance->_file = new AudioFileSourceHTTPStream(instance->_url.c_str());
+                if (WiFi.status() == WL_CONNECTED && instance->_url.length() > 0) {
+                    Serial.printf("[UDA1334 Task] Connecting to: %s\n", instance->_url.c_str());
+                    
+                    instance->_file = new AudioFileSourceHTTPStream(instance->_url.c_str());
 
-                // Буфер 256 KB в RAM/PSRAM
-                instance->_buff = new AudioFileSourceBuffer(instance->_file, 262144);
-                
-                instance->_out = new AudioOutputI2S();
-                
-                // Порядок вызова SetPinout: (BCLK, WCLK, DOUT)
-                instance->_out->SetPinout(instance->_bclk, instance->_wclk, instance->_dout);
-                
-                float gain = (float)instance->_volume / 100.0f;
-                instance->_out->SetGain(gain);
+                    // Выделяем 512 КБ под буфер потока в PSRAM
+                    size_t buffSize = 512 * 1024;
+                    #if defined(BOARD_HAS_PSRAM) || defined(CONFIG_SPIRAM_SUPPORT)
+                        instance->_psramBuf = (uint8_t*)heap_caps_malloc(buffSize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+                    #endif
 
-                // Выбор кодека на основе URL
-                String urlLower = instance->_url;
-                urlLower.toLowerCase();
+                    if (instance->_psramBuf) {
+                        instance->_buff = new AudioFileSourceBuffer(instance->_file, instance->_psramBuf, buffSize);
+                        Serial.println("[UDA1334 Task] 512 KB stream buffer allocated in PSRAM");
+                    } else {
+                        // Фолбэк в обычную DRAM, если PSRAM недоступна
+                        instance->_buff = new AudioFileSourceBuffer(instance->_file, 64 * 1024);
+                        Serial.println("[UDA1334 Task] Buffer allocated in DRAM (PSRAM fallback)");
+                    }
+                    
+                    instance->_out = new AudioOutputI2S();
+                    instance->_out->SetPinout(instance->_bclk, instance->_wclk, instance->_dout);
+                    
+                    float gain = (float)instance->_volume / 100.0f;
+                    instance->_out->SetGain(gain);
 
-                if (urlLower.indexOf(".aac") != -1 || urlLower.indexOf("/aac") != -1 || urlLower.indexOf("format=aac") != -1) {
-                    instance->_decoder = new AudioGeneratorAAC();
-                    Serial.println("[UDA1334 Task] Selected codec: AAC");
-                } 
-                else if (urlLower.indexOf(".flac") != -1) {
-                    instance->_decoder = new AudioGeneratorFLAC();
-                    Serial.println("[UDA1334 Task] Selected codec: FLAC");
-                } 
-                else if (urlLower.indexOf(".wav") != -1) {
-                    instance->_decoder = new AudioGeneratorWAV();
-                    Serial.println("[UDA1334 Task] Selected codec: WAV");
-                } 
-                else {
-                    instance->_decoder = new AudioGeneratorMP3();
-                    Serial.println("[UDA1334 Task] Selected codec: MP3");
-                }
+                    // Выбор кодека на основе URL
+                    String urlLower = instance->_url;
+                    urlLower.toLowerCase();
 
-                if (instance->_decoder->begin(instance->_buff, instance->_out)) {
-                    instance->_isPlaying = true;
-                    Serial.println("[UDA1334 Task] Playback started!");
+                    if (urlLower.indexOf(".aac") != -1 || urlLower.indexOf("/aac") != -1 || urlLower.indexOf("format=aac") != -1) {
+                        instance->_decoder = new AudioGeneratorAAC();
+                        Serial.println("[UDA1334 Task] Selected codec: AAC");
+                    } 
+                    else if (urlLower.indexOf(".flac") != -1) {
+                        instance->_decoder = new AudioGeneratorFLAC();
+                        Serial.println("[UDA1334 Task] Selected codec: FLAC");
+                    } 
+                    else if (urlLower.indexOf(".wav") != -1) {
+                        instance->_decoder = new AudioGeneratorWAV();
+                        Serial.println("[UDA1334 Task] Selected codec: WAV");
+                    } 
+                    else {
+                        instance->_decoder = new AudioGeneratorMP3();
+                        Serial.println("[UDA1334 Task] Selected codec: MP3");
+                    }
+
+                    if (instance->_decoder->begin(instance->_buff, instance->_out)) {
+                        instance->_isPlaying = true;
+                        Serial.println("[UDA1334 Task] Playback started!");
+                    } else {
+                        Serial.println("[UDA1334 Task] Decoder start failed!");
+                        instance->stopAudioPipeline();
+                    }
                 } else {
-                    Serial.println("[UDA1334 Task] Decoder start failed!");
-                    instance->stopAudioPipeline();
+                    Serial.println("[UDA1334 Task] Wi-Fi not connected or empty URL!");
                 }
             }
 
-            // Остановка
+            // Остановка потока
             if (instance->_needsStop) {
                 instance->_needsStop = false;
                 instance->stopAudioPipeline();
@@ -108,8 +123,14 @@ public:
             if (instance->_isPlaying && instance->_decoder) {
                 if (instance->_decoder->isRunning()) {
                     if (!instance->_decoder->loop()) {
-                        instance->_decoder->stop();
-                        instance->_isPlaying = false;
+                        Serial.println("[UDA1334 Task] Stream lost or finished! Reconnecting in 2s...");
+                        instance->stopAudioPipeline();
+                        
+                        // Автопереподключение при обрыве сети (если не ждем явную остановку)
+                        if (!instance->_needsStop && instance->_url.length() > 0) {
+                            vTaskDelay(pdMS_TO_TICKS(2000));
+                            instance->_needsConnect = true;
+                        }
                     }
                 } else {
                     instance->_isPlaying = false;
@@ -137,6 +158,10 @@ public:
             delete _buff;
             _buff = nullptr;
         }
+        if (_psramBuf) {
+            heap_caps_free(_psramBuf);
+            _psramBuf = nullptr;
+        }
         if (_file) {
             _file->close();
             delete _file;
@@ -158,7 +183,6 @@ public:
         if (_dout == 0) { _dout = 19; }
         if (_bclk == 0) { _bclk = 21; }
 
-        // Считываем только начальную громкость из параметров
         jsonRead(parameters, "volume", _volume);
 
         xTaskCreatePinnedToCore(
@@ -216,8 +240,8 @@ public:
             }
 
             if (_url != "") {
+                _needsStop = false;
                 _needsConnect = true;
-                // Обновляем веб-интерфейс строго именем станции
                 regEvent(_stationName, "title");
                 regEvent(_stationName, "track");
             }
@@ -236,7 +260,6 @@ public:
 
                 if (_volume != newVol) {
                     _volume = newVol;
-                    // Просто тихо меняем Gain на лету без вызова regEvent!
                     if (_out) {
                         float gain = (float)_volume / 100.0f;
                         _out->SetGain(gain);
