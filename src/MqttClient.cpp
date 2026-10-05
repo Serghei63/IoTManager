@@ -309,6 +309,7 @@ boolean publishEvent(const String& topic, const String& data) {
 }
 
 void publishWidgets() {
+    /*
     auto file = seekFile("layout.json");
     if (!file) {
         SerialPrint("E", F("MQTT"), F("no file layout.json"));
@@ -316,6 +317,15 @@ void publishWidgets() {
     }
     size_t size = file.size();
     DynamicJsonDocument doc(size * 2);
+    DeserializationError error = deserializeJson(doc, file);
+    */
+   auto file = seekFile("layout.json");
+    if (!file) {
+        SerialPrint("E", F("MQTT"), F("no file layout.json"));
+        return;
+    }
+    size_t size = file.size();
+    SpiJsonDocument doc(size * 2);
     DeserializationError error = deserializeJson(doc, file);
     if (error) {
         SerialPrint("E", F("MQTT"), error.f_str());

@@ -1,9 +1,25 @@
 #pragma once
 
 #include "Global.h"
+#include <ArduinoJson.h>
 
-extern String jsonReadStrDoc(DynamicJsonDocument& doc, String name);
-extern void jsonWriteStrDoc(DynamicJsonDocument& doc, String name, String value);
+// Аллокатор для выделения памяти ArduinoJson в PSRAM
+struct SpiRamAllocator {
+  void* allocate(size_t size) {
+    return heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  }
+  void deallocate(void* pointer) {
+    heap_caps_free(pointer);
+  }
+  void* reallocate(void* ptr, size_t new_size) {
+    return heap_caps_realloc(ptr, new_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  }
+};
+
+using SpiJsonDocument = BasicJsonDocument<SpiRamAllocator>;
+
+extern String jsonReadStrDoc(SpiJsonDocument& doc, String name);
+extern void jsonWriteStrDoc(SpiJsonDocument& doc, String name, String value);
 
 extern String jsonWriteStr(String& json, String name, String value, bool e = true);
 extern String jsonWriteInt(String& json, String name, int value, bool e = true);

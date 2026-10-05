@@ -112,7 +112,7 @@
     },
     "defActive": false,
     "usedLibs": {
-        "esp32*": [
+        "esp32s3_n16r8": [
             "https://github.com/eModBus/eModBus"
         ]
     }

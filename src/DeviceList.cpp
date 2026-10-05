@@ -1,4 +1,5 @@
 #include "DeviceList.h"
+#include "utils/JsonUtils.h"
 
 const String getThisDevice() {
     String thisDevice = "{}";
@@ -113,7 +114,7 @@ void udpBroadcastInit() {
 }
 
 void jsonMergeArrays(String& existJson, String& incJson) {
-    DynamicJsonDocument incJsonDoc(4096);
+    SpiJsonDocument incJsonDoc(4096);
     DeserializationError incJsonError = deserializeJson(incJsonDoc, incJson);
     // if (incJsonError) {  // upd: devlist заведомо верный, зачем проверять еще раз?
     //     SerialPrint("E", F("UDP"), "Invailed json in incomming udp packet " + String(incJsonError.f_str()));
@@ -121,7 +122,7 @@ void jsonMergeArrays(String& existJson, String& incJson) {
     //     return;
     // }
 
-    DynamicJsonDocument existJsonDoc(4096);
+SpiJsonDocument existJsonDoc(4096);
     DeserializationError existJsonError = deserializeJson(existJsonDoc, existJson);
     // if (existJsonError) {    // upd: полученный json уже проверен на целостность
     //     SerialPrint("E", F("UDP"), "Invailed json in existing udp dev list " + String(incJsonError.f_str()));
