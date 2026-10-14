@@ -1,50 +1,37 @@
-#include "Global.h"          // Это шаблон
-#include "classes/IoTItem.h" // Смотри пример аналогового входа
+#include "Global.h"          // Шаблон ядра
+#include "classes/IoTItem.h" // Базовый класс элемента
 
-#include <Arduino.h> // Тоже шаблон
+#include <Arduino.h>
 #include <MD_Parola.h>
 #include <MD_MAX72xx.h>
-#include <SPI.h>
-#include "6bite_rus.h" // подключение шрифт киррилицы
-#include "effect.h"    // эффекты
-// Defining size, and output pins
+#include "6bite_rus.h"       // Подключение шрифта кириллицы
+#include "effect.h"          // Эффекты анимации
 
 class Max7219 : public IoTItem
 {
 private:
-// #define CLK_PIN   18  // or SCK
-// #define  DATA_PIN  19  // or MOSI
-#define CS_PIN 5 // номер пина CS SPI                  // Для есп8266. Потом попробуем задать с веба
-
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
-#define MAX_DEVICES 5 // У меня 4 модулей. Потом опять с веба попробуем задать
 
-    MD_Parola Display = MD_Parola(HARDWARE_TYPE, CS_PIN, MAX_DEVICES); // Опять с ардуины
+    MD_Parola* Display = nullptr;
 
-    String _id2show;
-    int _intensity;        // Яркость будем менять с веба ( с modinfo )
-    int _SPEED_IN_TIME;    // скорость  начала анимации с веба
-    int _SPEED_OUT_TIME;   // скорость  конца анимации с веба
-    int _PAUSE_TIME;       // пауза между анимациями с веба
-    int _inFX;             // начальный эффект с веба
-    int _outFX;            // конечный эффект с веба
-    int _setTextAlignment; // выравнивание текста
-    String tmpStr;
-    uint32_t currentMillis;
-    uint32_t difference;
-    uint32_t prevMillis;
-    uint32_t difference2;
-    uint32_t prevMillis2;
+    String _id2show = "";
+    int _intensity = 5;         // Яркость по умолчанию (0..15)
+    int _SPEED_IN_TIME = 50;    // Скорость входа анимации
+    int _SPEED_OUT_TIME = 50;   // Скорость выхода анимации
+    int _PAUSE_TIME = 2000;     // Пауза между анимациями
+    int _inFX = 0;              // Эффект входа
+    int _outFX = 0;             // Эффект выхода
+    int _setTextAlignment = 1;  // Выравнивание (0 - Left, 1 - Center, 2 - Right)
+    int _maxDevices = 5;        // Количество модулей по умолчанию
+
+    String tmpStr = "Wait...";
+    String lastValidStr = "";
+    uint32_t prevMillis = 0;
 
 public:
     Max7219(String parameters) : IoTItem(parameters)
-    { // Опять шаблон для Сетапа
-
-        Display.begin();                  // Сетап с ардуины.
-        Display.setIntensity(_intensity); // яркость меняем с веба
-        Display.setFont(_6bite_rus);      // шрифт кириллица
-        Display.displayClear();
-
+    {
+        // 1. Безопасное считывание настроек
         jsonRead(parameters, "id2show", _id2show);
         jsonRead(parameters, "intensity", _intensity);
         jsonRead(parameters, "SPEED_IN_TIME", _SPEED_IN_TIME);
@@ -54,82 +41,128 @@ public:
         jsonRead(parameters, "effect_out", _outFX);
         jsonRead(parameters, "setTextAlignment", _setTextAlignment);
 
-        // jsonRead(parameters, "MAX_DEVICES", _MAX_DEVICES);
+        _maxDevices = jsonReadInt(parameters, "maxDevices");
+        if (_maxDevices <= 0) _maxDevices = 5; // По умолчанию 5 модулей
+
+        int clock = jsonReadInt(parameters, "clock"); 
+        int data  = jsonReadInt(parameters, "data");  
+        int cs    = jsonReadInt(parameters, "cs");    
+
+        // Подставляем безопасные пины по умолчанию
+        if (clock == 0) clock = 14;
+        if (data == 0)  data = 13;
+        if (cs == 0)    cs = 12; 
+
+        // Коррекция значений
+        if (_intensity < 0 || _intensity > 15) _intensity = 5;
+        if (_inFX < 0 || _inFX > 28) _inFX = 0;
+        if (_outFX < 0 || _outFX > 28) _outFX = 0;
+        if (_setTextAlignment < 0 || _setTextAlignment > 2) _setTextAlignment = 1;
+
+        // 2. Инициализация дисплея
+        Display = new MD_Parola(HARDWARE_TYPE, data, clock, cs, _maxDevices);
+
+        if (Display) {
+            Display->begin();
+            Display->setIntensity(_intensity);
+            Display->setFont(_6bite_rus);
+            Display->displayClear();
+
+            // Старт вывода сообщения по умолчанию
+            Display->displayText(
+                tmpStr.c_str(),
+                setTextAlignment[_setTextAlignment],
+                _SPEED_IN_TIME,
+                _PAUSE_TIME,
+                effect[_inFX],
+                effect[_outFX]
+            );
+        }
     }
-    // Дальше опять шаблон для Лупа
 
-    void loop() // если вызываем loop то void doByInterval() отключается, снизу добавил таймер для вызова этой функции раз в 1 сек.
+    void loop() override
     {
+        // Обязательно вызываем базовый loop класса IoTItem!
+        IoTItem::loop();
 
-        // tmpStr = getItemValue(_id2show);
+        if (!Display) return;
 
-        difference2 = millis() - prevMillis2;
-
-        if (difference2 >= 50)
+        // Крутим анимацию дисплея
+        if (Display->displayAnimate())
         {
-            if (Display.displayAnimate()) // animates and returns true when an animation is completed
-            {
-                Display.setTextBuffer(tmpStr.c_str()); // вставляем в буфер дисплея наше значение
-                //  Display.displayText(tmpStr.c_str(), PA_CENTER, _SPEED_IN_TIME, _PAUSE_TIME, effect[_inFX], effect[_outFX]); - другая функция отправление данных
-                Display.displayReset(); // сбрасываем данные
+            // Обновляем буфер только если строка реально изменилась
+            if (tmpStr != lastValidStr && tmpStr.length() > 0) {
+                lastValidStr = tmpStr;
+                Display->setTextBuffer(lastValidStr.c_str());
             }
-            prevMillis2 = millis();
-        }
-
-        currentMillis = millis(); // таймер для обновления чтения данных с веба
-        difference = currentMillis - prevMillis;
-        if (difference >= 1000)
-        {
-            prevMillis = millis();
-            this->doByInterval(); // вызов функции void doByInterval()
+            Display->displayReset();
         }
     }
 
-    void doByInterval()
-    {
-        tmpStr = getItemValue(_id2show); // считывание значения в веба
-        if (_intensity >= 0 and _intensity <= 15)
-            Display.setIntensity(_intensity); // выставляем яркость меняем с веба, проверяем значение от 0 до 15
-        else
-            _intensity = 0; // иначе сбрасываем на 0.
+void doByInterval() override
+{
+    if (!Display) return;
 
-        if (_setTextAlignment >= 0 and _setTextAlignment <= 2)             // выравнивание текста  проверяем значение от 0 до 2
-            Display.setTextAlignment(setTextAlignment[_setTextAlignment]); // выравнивание текста 0-слева, 1-по центру, 2-справа
-        else
-            _setTextAlignment = 1; // иначе выставляем по центру на 1.
+    if (_id2show.length() > 0) {
+        String val = getItemValue(_id2show);
+        
+        // Отладка в Serial Monitor
+       // SerialPrint("I", "Max7219", "Looking for ID: '" + _id2show + "', Read Value: '" + val + "'");
 
-        Display.setPause(_PAUSE_TIME);                          // назначение паузы между анимаций
-        Display.setSpeedInOut(_SPEED_IN_TIME, _SPEED_OUT_TIME); // назначаем скорость начала и конца анимации
-
-        if (_inFX >= 0 and _inFX <= 28 and _outFX >= 0 and _outFX <= 28)
-            Display.setTextEffect(effect[_inFX], effect[_outFX]); // выбираем эффект начала и конца анимации от 0 до 28
-        else
-        {
-            _inFX = 0;
-            _outFX = 0;
+        if (val.length() > 0) {
+            tmpStr = val;
+        } else {
+            tmpStr = "No ID"; // Если ID не найден или значение пустое
         }
+    } else {
+        tmpStr = "No Conf";
     }
 
-    // Дальше для изменения дизайна по сценарию. Опять шаблон
+    // Обновление настроек из веба
+    if (_intensity >= 0 && _intensity <= 15) {
+        Display->setIntensity(_intensity);
+    }
 
-    // IoTValue execute(String command, std::vector<IoTValue> &param)
+    Display->setPause(_PAUSE_TIME);
+    Display->setSpeedInOut(_SPEED_IN_TIME, _SPEED_OUT_TIME);
 
-    //{ // будет возможным использовать, когда сценарии запустятся
+    if (_inFX >= 0 && _inFX <= 28 && _outFX >= 0 && _outFX <= 28) {
+        Display->setTextEffect(effect[_inFX], effect[_outFX]);
+    }
+}
 
-    // doByInterval();
-    // return {};
-    //}
+// Вызывается ядром мгновенно при изменении любой переменной в системе
+void onChange(String key, String value) 
+{
+    // Проверяем, изменилась ли именно та переменная, которую мы выводим
+    if (key == _id2show) {
+        if (value.length() > 0 && value != tmpStr) {
+            tmpStr = value;
+            
+            // Если экран инициализирован, сразу же обновляем текст
+            if (Display) {
+                Display->setTextBuffer(tmpStr.c_str());
+                Display->displayReset();
+            }
+            SerialPrint("I", "Max7219", "Instant update for " + key + " = " + value);
+        }
+    }
+}
 
-    ~Max7219(){};
+    ~Max7219() {
+        if (Display) {
+            Display->displayClear();
+            delete Display;
+            Display = nullptr;
+        }
+    }
 };
+
 void *getAPI_Max7219(String subtype, String param)
 {
     if (subtype == F("Max7219"))
     {
         return new Max7219(param);
     }
-    else
-    {
-        return nullptr;
-    }
+    return nullptr;
 }
