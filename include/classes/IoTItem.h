@@ -6,11 +6,36 @@
 class IoTBench;
 class IoTDiscovery;
 
+// FNV-1a хэш идентификаторов. Используется для быстрого поиска элементов и сопоставления событий в сценариях
+#define FNV1A_EMPTY_HASH 2166136261U  // хэш пустой строки
+
+inline uint32_t hashFNV1a(const char* str, size_t len) {
+    uint32_t hash = FNV1A_EMPTY_HASH;
+    for (size_t i = 0; i < len; ++i) {
+        hash ^= (uint8_t)str[i];
+        hash *= 16777619U;
+    }
+    return hash;
+}
+inline uint32_t hashFNV1a(const String& str) { return hashFNV1a(str.c_str(), str.length()); }
+
+// вариант для вычисления хэша строковых литералов на этапе компиляции, например case hashLit("getHours"):
+constexpr uint32_t hashLit(const char* str, uint32_t hash = FNV1A_EMPTY_HASH) {
+    return *str ? hashLit(str + 1, (hash ^ (uint8_t)*str) * 16777619U) : hash;
+}
+
 struct IoTValue {
     float valD = 0;
     String valS = "";
 
     bool isDecimal = true;
+
+    // сброс значения без освобождения буфера строки
+    void clear() {
+        valD = 0;
+        valS = "";
+        isDecimal = true;
+    }
 };
 
 class IoTItem {
@@ -29,6 +54,7 @@ class IoTItem {
     String getSubtype();
 
     String getID();
+    uint32_t getIDHash() const { return _idHash; }
     bool isStrInID(const String& str);
     int getIntFromNet();
     virtual String getValue();
@@ -101,6 +127,7 @@ class IoTItem {
     bool _needSave = false;  // признак необходимости сохранять и загружать значение элемента на flash
     String _subtype = "";
     String _id = "errorId";  // если будет попытка создания Item без указания id, то элемент оставит это значение
+    uint32_t _idHash = 0;    // хэш _id для быстрого поиска элемента и сопоставления событий
     long _interval = 0;
     int _intFromNet = -2;  // количество секунд доверия, пришедших из сети вместе с данными для текущего ИД
                            // -2 - данные не приходили, скорее всего, элемент локальный, доверие есть, в случае прихода сетевого значения с int=0, будет выключен механизм проверки доверия
@@ -121,6 +148,7 @@ class IoTItem {
 };
 
 IoTItem* findIoTItem(const String& name);                     // поиск экземпляра элемента модуля по имени
+IoTItem* findIoTItem(uint32_t nameHash);                      // поиск экземпляра элемента модуля по хэшу имени
 IoTItem* findIoTItemByPartOfName(const String& partName);      // поиск элемента модуля в существующей конфигурации по части имени
 String getItemValue(const String& name);                      // поиск плюс получение значения
 bool isItemExist(const String& name);                         // существует ли айтем

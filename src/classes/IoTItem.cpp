@@ -10,6 +10,7 @@ IoTItem::IoTItem(const String& parameters) {
     setInterval(_interval);
     jsonRead(parameters, F("subtype"), _subtype, false);
     jsonRead(parameters, F("id"), _id);
+    _idHash = hashFNV1a(_id);
     if (!jsonRead(parameters, F("multiply"), _multiply, false)) _multiply = 1;
     if (!jsonRead(parameters, F("plus"), _plus, false)) _plus = 0;
     if (!jsonRead(parameters, F("round"), _round, false)) _round = -1;
@@ -109,7 +110,7 @@ void IoTItem::regEvent(const String& value, const String& consoleInfo, bool erro
     // SerialPrint("i", "Sensor", consoleInfo + " '" + _id + "' data: " + value + "'");
 
     if (genEvent) {
-        generateEvent(_id, value);
+        generateEvent(_idHash, value);
 
         // отправка события другим устройствам в сети если не было ошибки
         if (_global && !error) {
@@ -299,8 +300,14 @@ unsigned long IoTItem::getRtcUnixTime()
 // поиск элемента модуля в существующей конфигурации
 IoTItem* findIoTItem(const String& name) {
     if (name == "") return nullptr;
+    return findIoTItem(hashFNV1a(name));
+}
+
+// поиск элемента модуля по хэшу имени (сравнение чисел вместо строк)
+IoTItem* findIoTItem(uint32_t nameHash) {
+    if (nameHash == FNV1A_EMPTY_HASH) return nullptr;
     for (std::list<IoTItem*>::iterator it = IoTItems.begin(); it != IoTItems.end(); ++it) {
-        if ((*it)->getID() == name) return *it;
+        if ((*it)->getIDHash() == nameHash) return *it;
     }
 
     return nullptr;
@@ -356,7 +363,7 @@ IoTItem* createItemFromNet(const String& msgFromNet) {
     if (tmpp->getInterval()) tmpp->setIntFromNet(tmpp->getInterval() / 1000 + 5);
     tmpp->iAmLocal = false;
     IoTItems.push_back(tmpp);
-    generateEvent(tmpp->getID(), tmpp->getValue());
+    generateEvent(tmpp->getIDHash(), tmpp->getValue());
     return tmpp;
 }
 
@@ -372,7 +379,7 @@ void analyzeMsgFromNet(const String& msg, String altId) {
         itemExist->setInterval(interval);                      // устанавливаем такой же интервал как на источнике события
         itemExist->setValue(valAsStr, false);                  // только регистрируем изменения в интерфейсе без создания цикла сетевых событий
         if (interval) itemExist->setIntFromNet(interval + 5);  // если пришедший интервал =0, значит не нужно контролировать доверие, иначе даем фору в 5 сек
-        generateEvent(altId, valAsStr);
+        generateEvent(itemExist->getIDHash(), valAsStr);
     } else {
         // временно зафиксируем данные в базе, если локально элемент отсутствует
         createItemFromNet(msg);
