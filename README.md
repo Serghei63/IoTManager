@@ -13,3 +13,7 @@ To achieve your goal, you only need three things:
 If remote control and the application are not needed, then the last step can be omitted.
 
 The logic of each device is configured using scripts. They are needed in order to teach the device to carry out your invented algorithms. You can assign any reaction to any action. The temperature has risen - the device will turn off the heater. Humidity has fallen and the level in the tank is more than 10% - the device will start watering, if not, it will send you a telegram notification that there is not enough water. These are just a few examples. Scenarios are created by you, and their flexibility will allow you to fulfill your every desire.
+
+## Acknowledgements
+
+- **Artret** ([Telegram: Stari4ok8](https://t.me/Stari4ok8)) - ideas and code for the scenario engine optimization in version 5: scenarios are parsed into an AST once instead of on every event, element IDs are matched by hash, and the event and command queues use ring buffers.
