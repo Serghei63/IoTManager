@@ -1,7 +1,7 @@
 {
     "projectProp": {
         "platformio": {
-            "default_envs": "esp32_4mb3f"
+            "default_envs": "esp32s3_n16r8"
         }
     },
     "modules": {
@@ -47,6 +47,10 @@
                 "active": false
             },
             {
+                "path": "src/modules/virtual/Lognew2",
+                "active": false
+            },
+            {
                 "path": "src/modules/virtual/LogSd",
                 "active": false
             },
@@ -71,6 +75,10 @@
                 "active": false
             },
             {
+                "path": "src/modules/virtual/RingBuffer",
+                "active": false
+            },
+            {
                 "path": "src/modules/virtual/Runtime",
                 "active": false
             },
@@ -89,6 +97,10 @@
             {
                 "path": "src/modules/virtual/UpdateServer",
                 "active": true
+            },
+            {
+                "path": "src/modules/virtual/Valute",
+                "active": false
             },
             {
                 "path": "src/modules/virtual/Variable",
@@ -161,6 +173,10 @@
                 "active": false
             },
             {
+                "path": "src/modules/sensors/Can",
+                "active": false
+            },
+            {
                 "path": "src/modules/sensors/CanBUS",
                 "active": false
             },
@@ -189,6 +205,10 @@
                 "active": false
             },
             {
+                "path": "src/modules/sensors/Ens160",
+                "active": false
+            },
+            {
                 "path": "src/modules/sensors/ExampleModule",
                 "active": false
             },
@@ -210,6 +230,10 @@
             },
             {
                 "path": "src/modules/sensors/Hdc1080",
+                "active": false
+            },
+            {
+                "path": "src/modules/sensors/Hlw8032",
                 "active": false
             },
             {
@@ -249,8 +273,8 @@
                 "active": false
             },
             {
-                "path": "src/modules/sensors/ModbusRTU",
-                "active": false
+                "path": "src/modules/sensors/ModbusGroup",
+                "active": true
             },
             {
                 "path": "src/modules/sensors/ModbusRTUasync",
@@ -339,6 +363,10 @@
                 "active": false
             },
             {
+                "path": "src/modules/exec/Apds9960",
+                "active": false
+            },
+            {
                 "path": "src/modules/exec/BrokerMQTT",
                 "active": false
             },
@@ -391,7 +419,15 @@
                 "active": false
             },
             {
+                "path": "src/modules/exec/Mfrc522",
+                "active": false
+            },
+            {
                 "path": "src/modules/exec/Mp3",
+                "active": false
+            },
+            {
+                "path": "src/modules/exec/Mpu6050",
                 "active": false
             },
             {
@@ -424,7 +460,7 @@
             },
             {
                 "path": "src/modules/exec/Radio1334",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/exec/SDcard",
@@ -477,6 +513,10 @@
                 "active": false
             },
             {
+                "path": "src/modules/display/Eink42",
+                "active": false
+            },
+            {
                 "path": "src/modules/display/Gc9",
                 "active": false
             },
@@ -522,6 +562,10 @@
             },
             {
                 "path": "src/modules/display/St7735",
+                "active": false
+            },
+            {
+                "path": "src/modules/display/St7789",
                 "active": false
             },
             {

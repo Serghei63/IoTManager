@@ -1,7 +1,7 @@
 {
     "iotmSettings": {
-        "name": "ESP_radio",
-        "apssid": "ESP_radio",
+        "name": "ESPs3_modbus",
+        "apssid": "ESP_modbus",
         "appass": "",
         "wifirep_apchanel": 7,
         "wifirep_apip": "192.168.4.1",
@@ -15,11 +15,11 @@
         "ntp": "pool.ntp.org",
         "weblogin": "admin",
         "webpass": "admin",
-        "mqttServer": "",
-        "mqttPort": 8021,
-        "mqttPrefix": "/risenew",
-        "mqttUser": "rise",
-        "mqttPass": "3hostel3",
+        "mqttServer": "live-control.com",
+        "mqttPort": 1883,
+        "mqttPrefix": "/ver407",
+        "mqttUser": "95:5lZDsy",
+        "mqttPass": "PL6zFb",
         "serverip": "http://iotmanager.org",
         "serverlocal": "http://192.168.1.2:5500",
         "log": 0,
@@ -32,7 +32,7 @@
     },
     "projectProp": {
         "platformio": {
-            "default_envs": "esp32_4mb3f",
+            "default_envs": "esp32s3_n16r8",
             "comments_default_envs": "choose from: esp8266_4mb, esp32_4mb, esp32_4mb3f, esp8266_16mb, esp32_16mb, esp32cam_4mb, esp32s2_4mb, esp32s3_16mb, esp32s3_n16r8, esp32c3m_4mb, esp8266_1mb, esp8266_1mb_ota, esp8266_2mb, esp8266_2mb_ota, esp8285_1mb, esp8285_1mb_ota, esp32c6_4mb, esp32c6_8mb, bk7231n, esp32_wifirep, esp32s3_4848S040, esp32_wrover_n16r8",
             "envs": [
                 {
@@ -201,6 +201,10 @@
                 "active": false
             },
             {
+                "path": "src/modules/virtual/Lognew2",
+                "active": false
+            },
+            {
                 "path": "src/modules/virtual/LogSd",
                 "active": false
             },
@@ -225,6 +229,10 @@
                 "active": false
             },
             {
+                "path": "src/modules/virtual/RingBuffer",
+                "active": false
+            },
+            {
                 "path": "src/modules/virtual/Runtime",
                 "active": false
             },
@@ -243,6 +251,10 @@
             {
                 "path": "src/modules/virtual/UpdateServer",
                 "active": true
+            },
+            {
+                "path": "src/modules/virtual/Valute",
+                "active": false
             },
             {
                 "path": "src/modules/virtual/Variable",
@@ -315,6 +327,10 @@
                 "active": false
             },
             {
+                "path": "src/modules/sensors/Can",
+                "active": false
+            },
+            {
                 "path": "src/modules/sensors/CanBUS",
                 "active": false
             },
@@ -343,6 +359,10 @@
                 "active": false
             },
             {
+                "path": "src/modules/sensors/Ens160",
+                "active": false
+            },
+            {
                 "path": "src/modules/sensors/ExampleModule",
                 "active": false
             },
@@ -364,6 +384,10 @@
             },
             {
                 "path": "src/modules/sensors/Hdc1080",
+                "active": false
+            },
+            {
+                "path": "src/modules/sensors/Hlw8032",
                 "active": false
             },
             {
@@ -403,8 +427,8 @@
                 "active": false
             },
             {
-                "path": "src/modules/sensors/ModbusRTU",
-                "active": false
+                "path": "src/modules/sensors/ModbusGroup",
+                "active": true
             },
             {
                 "path": "src/modules/sensors/ModbusRTUasync",
@@ -493,6 +517,10 @@
                 "active": false
             },
             {
+                "path": "src/modules/exec/Apds9960",
+                "active": false
+            },
+            {
                 "path": "src/modules/exec/BrokerMQTT",
                 "active": false
             },
@@ -545,7 +573,15 @@
                 "active": false
             },
             {
+                "path": "src/modules/exec/Mfrc522",
+                "active": false
+            },
+            {
                 "path": "src/modules/exec/Mp3",
+                "active": false
+            },
+            {
+                "path": "src/modules/exec/Mpu6050",
                 "active": false
             },
             {
@@ -578,7 +614,7 @@
             },
             {
                 "path": "src/modules/exec/Radio1334",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/exec/SDcard",
@@ -631,6 +667,10 @@
                 "active": false
             },
             {
+                "path": "src/modules/display/Eink42",
+                "active": false
+            },
+            {
                 "path": "src/modules/display/Gc9",
                 "active": false
             },
@@ -676,6 +716,10 @@
             },
             {
                 "path": "src/modules/display/St7735",
+                "active": false
+            },
+            {
+                "path": "src/modules/display/St7789",
                 "active": false
             },
             {
