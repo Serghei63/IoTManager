@@ -1,9 +1,7 @@
 #pragma once
 // константы
 #include "Const.h"
-
 // внешние глобальные директории
-#include <Arduino.h>
 #include <ArduinoJson.h>
 #include <TickerScheduler.h>
 #include <PubSubClient.h>
@@ -111,8 +109,6 @@ extern String errorsHeapJson;
 extern bool needSaveValues;
 
 // buf
-extern String orderBuf;
-extern String eventBuf;
 extern String mysensorBuf;
 
 // wifi
