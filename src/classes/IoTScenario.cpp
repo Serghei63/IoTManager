@@ -444,7 +444,10 @@ enum SysOp {
     sysop_getMinutes,     //
     sysop_getSeconds,     //
     sysop_getMonth,       //
+    sysop_getMonthText,
     sysop_getDay,
+    sysop_getWeekday,
+    sysop_getWeekdayText,
     sysop_gethhmm,
     sysop_gethhmmss,
     sysop_getTime,
@@ -470,7 +473,10 @@ static SysOp getSysOp(uint32_t calleeHash) {
         case hashLit("getMinutes"): return sysop_getMinutes;
         case hashLit("getSeconds"): return sysop_getSeconds;
         case hashLit("getMonth"): return sysop_getMonth;
+        case hashLit("getMonthText"): return sysop_getMonthText;
         case hashLit("getDay"): return sysop_getDay;
+        case hashLit("getWeekday"): return sysop_getWeekday;
+        case hashLit("getWeekdayText"): return sysop_getWeekdayText;
         case hashLit("gethhmm"): return sysop_gethhmm;
         case hashLit("gethhmmss"): return sysop_gethhmmss;
         case hashLit("getTime"): return sysop_getTime;
@@ -518,6 +524,17 @@ IoTValue sysExecute(SysOp command, std::vector<IoTValue> &param) {
                 value.isDecimal = false;
                 value.valS = getDateTimeDotFormated();
                 break;
+            case sysop_getMonthText:
+                value.isDecimal = false;
+                value.valS = getTimeLocal_Month(true);
+                break;
+            case sysop_getWeekday:
+                value.valD = _time_local.day_of_week;
+                break;
+            case sysop_getWeekdayText:
+                value.isDecimal = false; // <-- Снимаем флаг числа, переводим в строку!
+                value.valS = getTimeLocal_Weekday(true); 
+                break;      
             default:
                 break;
         }
