@@ -14,6 +14,7 @@ class Cron : public IoTItem {
     cron_expr _expr;
     time_t _nextAlarm = 0;
     bool _isInit = false;
+    time_t _lastCheckedLocal = 0; // Добавлено для отслеживания скачков времени
 
    public:
     Cron(String parameters): IoTItem(parameters) {
@@ -76,18 +77,32 @@ class Cron : public IoTItem {
         regEvent(getNextAlarmF(), F("Cron alarm"), false, false);   
         _needSave = _needSaveBak;
     }
-
-    void doByInterval() {
+    
+void doByInterval() {
         if (!_isInit && _time_isTrust) initCron();
-        if (!_pause && _time_isTrust && (gmtTimeToLocal(unixTime) >= _nextAlarm)) {
-            updateNextAlarm(true);
-            bool _needSaveBak = _needSave;
-            _needSave = false;
-            regEvent(getNextAlarmF(), F("Cron alarm"));   
-            _needSave = _needSaveBak;
+        
+        if (_time_isTrust) {
+            time_t currentLocal = gmtTimeToLocal(unixTime);
+
+            // Проверка на резкий скачок времени (перевод часов, смена зоны, коррекция NTP)
+            // Если разница с прошлым тиком больше 2 часов или время ушло назад — форсим пересчет расписания
+            if (_lastCheckedLocal != 0) {
+                time_t diff = currentLocal - _lastCheckedLocal;
+                if (diff < -60 || diff > 7200) { 
+                    updateNextAlarm(true);
+                }
+            }
+            _lastCheckedLocal = currentLocal;
+
+            if (!_pause && (currentLocal >= _nextAlarm)) {
+                updateNextAlarm(true);
+                bool _needSaveBak = _needSave;
+                _needSave = false;
+                regEvent(getNextAlarmF(), F("Cron alarm"));   
+                _needSave = _needSaveBak;
+            }
         }
     }
-
     IoTValue execute(String command, std::vector<IoTValue> &param) {
         if (command == "stop") { 
             _pause = true;
