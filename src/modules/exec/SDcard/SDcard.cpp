@@ -14,6 +14,39 @@ class SDcard : public IoTItem {
     bool _isReady = false;
 
    public:
+
+   // Метод для чтения текстового файла в String
+    String readFileContent(const char* path) {
+        if (!_isReady) return "";
+        FsFile file;
+        if (!file.open(path, O_READ)) {
+            Serial.printf("[SDcard] File not found on SD: %s\n", path);
+            return "";
+        }
+        String content = "";
+        while (file.available()) {
+            content += (char)file.read();
+        }
+        file.close();
+        return content;
+    }
+
+    // Метод проверки и переноса файла с SD на внутреннюю LittleFS
+    bool importFileToLittleFS(const char* filename) {
+        String content = readFileContent(filename);
+        if (content.length() == 0) return false;
+
+        File f = LittleFS.open(filename, "w");
+        if (!f) {
+            Serial.printf("[SDcard] Failed to open LittleFS file for writing: %s\n", filename);
+            return false;
+        }
+        f.print(content);
+        f.close();
+        Serial.printf("[SDcard] Successfully imported %s from SD to LittleFS\n", filename);
+        return true;
+    }
+
     SDcard(String parameters): IoTItem(parameters) {
         Serial.println("[SDcard] Starting SPI SD Card with custom pins via SdFat...");
         
@@ -35,6 +68,22 @@ class SDcard : public IoTItem {
 
         _isReady = true;
         globalSDCardInstance = this;
+
+        // Проверяем наличие файла сценария на SD и переносим во внутреннюю память
+        if (sd.exists("/scenario.txt")) {
+            if (importFileToLittleFS("/scenario.txt")) {
+                Serial.println("[SDcard] Scenario updated from SD card!");
+            }
+        }
+        
+        // Аналогично можно сделать для config.json, если это требуется
+        if (sd.exists("/config.json")) {
+            if (importFileToLittleFS("/config.json")) {
+                Serial.println("[SDcard] Config updated from SD card!");
+                // При необходимости можно сразу вызвать перезагрузку: 
+                ESP.restart();
+            }
+        }
 
         // Вывод информации о карте в консоль при старте
         uint32_t sectors = sd.card()->sectorCount();
