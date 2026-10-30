@@ -15,7 +15,12 @@
             "DIR_PIN": 0,
             "baud": 9600,
             "protocol": "SERIAL_8N1",
-            "debug": 0
+            "debug": 0,
+            "options": {
+                "baud": ["9600", "115200"],
+                "protocol": ["SERIAL_8N1", "SERIAL_8N2"],
+                "debug": [0, 1]
+            }
         },
         {
             "global": 0,

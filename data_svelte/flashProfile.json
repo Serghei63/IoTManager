@@ -28,7 +28,7 @@
             },
             {
                 "path": "src/modules/virtual/Loging",
-                "active": false
+                "active": true
             },
             {
                 "path": "src/modules/virtual/Loging2",
@@ -40,11 +40,11 @@
             },
             {
                 "path": "src/modules/virtual/LogingDaily",
-                "active": false
+                "active": true
             },
             {
                 "path": "src/modules/virtual/LogingHourly",
-                "active": false
+                "active": true
             },
             {
                 "path": "src/modules/virtual/Lognew2",
@@ -60,7 +60,7 @@
             },
             {
                 "path": "src/modules/virtual/Math",
-                "active": false
+                "active": true
             },
             {
                 "path": "src/modules/virtual/owmWeather",
@@ -80,7 +80,7 @@
             },
             {
                 "path": "src/modules/virtual/Runtime",
-                "active": false
+                "active": true
             },
             {
                 "path": "src/modules/virtual/SDLoging",
@@ -416,7 +416,7 @@
             },
             {
                 "path": "src/modules/exec/Mcp23017",
-                "active": false
+                "active": true
             },
             {
                 "path": "src/modules/exec/Mfrc522",
@@ -448,7 +448,7 @@
             },
             {
                 "path": "src/modules/exec/Pwm32",
-                "active": false
+                "active": true
             },
             {
                 "path": "src/modules/exec/Pwm8266",
