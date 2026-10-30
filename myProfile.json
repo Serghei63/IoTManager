@@ -1,7 +1,7 @@
 {
     "iotmSettings": {
-        "name": "IoTmanagerVer4",
-        "apssid": "IoTmanager",
+        "name": "IoT5dev",
+        "apssid": "IoT5dev",
         "appass": "",
         "wifirep_apchanel": 7,
         "wifirep_apip": "192.168.4.1",
@@ -9,8 +9,8 @@
         "wifirep_netmask": "255.255.255.0",
         "wifirep_gateway": "192.168.4.1",
         "wifirep_dns": "192.168.4.1",
-        "routerssid": "iot",
-        "routerpass": "hostel3333",
+        "routerssid": "mega",
+        "routerpass": "11111111",
         "timezone": 2,
         "ntp": "pool.ntp.org",
         "weblogin": "admin",
@@ -206,11 +206,11 @@
             },
             {
                 "path": "src/modules/virtual/owmWeather",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/virtual/Ping",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/virtual/SolarCalc",
@@ -252,11 +252,11 @@
             },
             {
                 "path": "src/modules/sensors/AhtXX",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/sensors/AnalogAdc",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/sensors/BH_1750",
@@ -284,19 +284,19 @@
             },
             {
                 "path": "src/modules/sensors/Bme280",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/sensors/Bmp280",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/sensors/Dht1122",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/sensors/Ds18b20",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/sensors/DS2401",
@@ -384,7 +384,7 @@
             },
             {
                 "path": "src/modules/sensors/Ntc",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/sensors/Pcf8591",
@@ -408,7 +408,7 @@
             },
             {
                 "path": "src/modules/sensors/RTC",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/sensors/S8",
@@ -444,13 +444,13 @@
             },
             {
                 "path": "src/modules/sensors/UART",
-                "active": true
+                "active": false
             }
         ],
         "executive_devices": [
             {
                 "path": "src/modules/exec/AnalogBtn",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/exec/BrokerMQTT",
@@ -522,7 +522,7 @@
             },
             {
                 "path": "src/modules/exec/Pwm32",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/exec/Pwm8266",
@@ -530,7 +530,7 @@
             },
             {
                 "path": "src/modules/exec/SDcard",
-                "active": false
+                "active": true
             },
             {
                 "path": "src/modules/exec/SIM800",
@@ -562,7 +562,7 @@
             },
             {
                 "path": "src/modules/exec/Thermostat",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/exec/WakeOnLanModule",

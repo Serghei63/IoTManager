@@ -1,9 +1,9 @@
 {
-    "name": "IoTmanagerVer4",
-    "apssid": "IoTmanager",
+    "name": "IoT5dev",
+    "apssid": "IoT5dev",
     "appass": "",
-    "routerssid": "iot",
-    "routerpass": "hostel3333",
+    "routerssid": "mega",
+    "routerpass": "11111111",
     "timezone": 2,
     "ntp": "pool.ntp.org",
     "weblogin": "admin",
