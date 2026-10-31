@@ -1,7 +1,7 @@
 {
     "iotmSettings": {
-        "name": "ESP_radio",
-        "apssid": "ESP_radio",
+        "name": "ESP_max7219",
+        "apssid": "ESP_max7219",
         "appass": "",
         "wifirep_apchanel": 7,
         "wifirep_apip": "192.168.4.1",
@@ -578,7 +578,7 @@
             },
             {
                 "path": "src/modules/exec/Radio1334",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/exec/SDcard",
@@ -652,7 +652,7 @@
             },
             {
                 "path": "src/modules/display/Max7219",
-                "active": false
+                "active": true
             },
             {
                 "path": "src/modules/display/Nextion",

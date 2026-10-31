@@ -424,7 +424,7 @@
             },
             {
                 "path": "src/modules/exec/Radio1334",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/exec/SDcard",
@@ -498,7 +498,7 @@
             },
             {
                 "path": "src/modules/display/Max7219",
-                "active": false
+                "active": true
             },
             {
                 "path": "src/modules/display/Nextion",

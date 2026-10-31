@@ -1,6 +1,6 @@
 {
-    "name": "ESP_radio",
-    "apssid": "ESP_radio",
+    "name": "ESP_max7219",
+    "apssid": "ESP_max7219",
     "appass": "",
     "routerssid": "mega",
     "routerpass": "11111111",

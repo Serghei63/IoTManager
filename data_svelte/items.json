@@ -196,22 +196,7 @@
     },
     {
         "global": 0,
-        "name": "12. I2S Radio",
-        "type": "Reading",
-        "subtype": "Radio1334",
-        "id": "radio",
-        "needSave": 1,
-        "widget": "anydataDef",
-        "page": "Radio",
-        "descr": "Radio",
-        "int": 1,
-        "pins": "18,19,21",
-        "num": 12,
-        "moduleName": "Radio1334"
-    },
-    {
-        "global": 0,
-        "name": "13. Телеграм-Лайт",
+        "name": "12. Телеграм-Лайт",
         "type": "Writing",
         "subtype": "TelegramLT",
         "id": "tg",
@@ -220,10 +205,34 @@
         "descr": "",
         "token": "",
         "chatID": "",
-        "num": 13,
+        "num": 12,
         "moduleName": "TelegramLT"
     },
     {
         "header": "screens"
+    },
+    {
+        "global": 0,
+        "name": "13. Max7219",
+        "type": "Reading",
+        "subtype": "Max7219",
+        "id": "Max7219",
+        "widget": "",
+        "page": "",
+        "descr": "Max7219",
+        "id2show": "id датчика",
+        "intensity": 3,
+        "SPEED_IN_TIME": 150,
+        "SPEED_OUT_TIME": 150,
+        "PAUSE_TIME": 2000,
+        "effect_in": 4,
+        "effect_out": 4,
+        "setTextAlignment": 1,
+        "cs": 5,
+        "clock": 18,
+        "data": 19,
+        "maxDevices": 5,
+        "num": 13,
+        "moduleName": "Max7219"
     }
 ]
