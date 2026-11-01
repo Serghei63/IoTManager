@@ -1,0 +1,53 @@
+{
+  "menuSection": "virtual_elements",
+
+  "configItem": [
+    {
+      "global": 0,
+      "name": "Курс валют",
+      "type": "Reading",
+      "subtype": "Kurs",
+      "id": "kurs",
+      "needSave": 0,
+      "widget": "anydataDef",
+      "page": "Курс",
+      "descr": "Доллар",
+      "int": 1,
+      "param": "USD",
+      "val": "..."
+    }
+  ],
+
+  "about": {
+    "authorName": "Serghei Crasnicov",
+    "authorContact": "https://t.me/Serghei63",
+    "authorGit": "https://github.com/Serghei63",
+    "specialThanks": "@avaks",
+    "moduleName": "Valute",
+    "moduleVersion": "0.0",
+    "usedRam": {
+      "esp32_4mb": 15,
+      "esp8266_4mb": 15
+    },
+    "subTypes": [
+      "USD",
+      "EUR",
+      "GBP",
+      "Data",
+      "Time"
+    ],
+    "title": "Курсы валют",
+    "moduleDesc": "Получение курса валют из интернета",
+    "propInfo": {
+      "param": "USD - доллар, EUR - евро, GBP - фунт стерлингов, Data - дата получения курсов на бирже, Time - время получения курсов на бирже",
+      "int": "Интервал запроса погоды в часах"
+    }
+  },
+
+  "defActive": false,
+
+  "usedLibs": {
+    "esp32*": [],
+    "esp82*": []
+  }
+}

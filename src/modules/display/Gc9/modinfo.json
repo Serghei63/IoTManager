@@ -1,0 +1,78 @@
+{   
+    "menuSection": "screens",
+
+    "configItem": [{
+
+        "name": "TFT экран Gc9A01A",
+        "type": "Reading",
+        "subtype": "Gc9",
+        "id": "gc",
+        "widget": "",
+        "page": "",
+        "descr": "T",
+		"descr1": "C",
+        "int": 15,
+        "coord": "60,200",
+        "id2show": "id датчика",
+        "shrift": "2",
+        "colour": "BLUE",
+        "fon": "BLACK",
+        "rotation": "1",
+        "fon_screen" : "BLACK"
+    }],
+    
+    "about": {
+        "authorName": "Serghei Crasnicov",
+        "authorContact": "https://t.me/Serghei63",
+        "authorGit": "https://github.com/Serghei63",
+        "specialThanks": "Ilya Belyakov",
+        "moduleName": "Gc9",
+        "moduleVersion": "1.0",
+        "usedRam": 15,
+        "moduleDesc": "Позволяет выводить на графический экран с чипом Gc9A01A по указанным позициям значения других элементов конфигурации.",
+        "propInfo": {
+            "int": "Период времени в секундах обновления информации на экране по конкретному элементу.",
+            "coord": "Координата позиции для вывода данных элемента конфигурации.",
+            "id2show": "id элемента конфигурации."
+        },
+        "funcInfo": [
+
+            {
+                "name": "x",
+                "descr": "Устанавливает первую координату",
+                "params": ["Номер строки первого символа"]
+            },
+            {
+                "name": "y",
+                "descr": "Устанавливает вторую координату",
+                "params": ["Номер столбца первого символа"]
+            },
+            {
+                "name": "descr",
+                "descr": "Задает приставку слева от значения",
+                "params": ["Строка"]
+            },
+			            {
+                "name": "descr1",
+                "descr": "Задает приставку справа от значения",
+                "params": ["Строка"]
+            },
+            {
+                "name": "id2show",
+                "descr": "Задает ИД элемента, значение которого хотим отображать на экране",
+                "params": ["Имя элемента конфигурации"]
+            }
+        ]
+    },
+
+    "defActive": false,
+
+    "usedLibs": {
+        "esp32_4mb": [
+           "https://github.com/PaintYourDragon/Adafruit_GC9A01A"
+        ],
+        "esp8266_4mb": [
+           "https://github.com/PaintYourDragon/Adafruit_GC9A01A"
+        ]
+    }
+}

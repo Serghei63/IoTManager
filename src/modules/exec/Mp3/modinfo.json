@@ -1,0 +1,181 @@
+{
+    "menuSection": "executive_devices",
+    "configItem": [
+        {
+            "global": 0,
+            "name": "MP3 плеер",
+            "type": "Reading",
+            "subtype": "Mp3",
+            "id": "mp3",
+            "widget": "anydataDef",
+            "page": "Магнитофон",
+            "descr": "Status",
+            "int": 1,
+            "pins": "26,25",
+            "volume": 20
+        }
+    ],
+    "about": {
+        "authorName": "Ilya Belyakov",
+        "authorContact": "https://t.me/Biveraxe",
+        "authorGit": "https://github.com/biveraxe",
+        "specialThanks": "",
+        "moduleName": "Mp3",
+        "moduleVersion": "1.0",
+        "usedRam": {
+            "esp32_4mb": 15,
+            "esp8266_4mb": 15
+        },
+        "title": "MP3 плеер",
+        "moduleDesc": "Позволяет управлять модулем проигрывания MP3 файлов с SD-карты по serial интерфейсу (DFplayer mini).",
+        "propInfo": {
+            "int": "Периодичность в секундах опроса состояния плеера.",
+            "pins": "Список GPIO через запятую, к которым подключен плеер.",
+            "volume": "Уровень громкости при инициализации."
+        },
+        "retInfo": "Содержит описание текущего статуса модуля, например, Time Out! - не может подключиться",
+"funcInfo": [
+    {
+        "name": "playAll",
+        "descr": "Играть всё с начала по очереди по кругу",
+        "params": []
+    },
+    {
+        "name": "stop",
+        "descr": "Полный останов воспроизведения",
+        "params": []
+    },
+    {
+        "name": "pause",
+        "descr": "Поставить на паузу",
+        "params": []
+    },
+    {
+        "name": "continue",
+        "descr": "Продолжить воспроизведение",
+        "params": []
+    },
+    {
+        "name": "next",
+        "descr": "Следующий трек",
+        "params": []
+    },
+    {
+        "name": "previous",
+        "descr": "Предыдущий трек",
+        "params": []
+    },
+    {
+        "name": "randomAll",
+        "descr": "Перемешать и играть все файлы в случайном порядке",
+        "params": []
+    },
+    {
+        "name": "volume",
+        "descr": "Установить громкость (0-30)",
+        "params": [
+            {
+                "descr": "Уровень громкости (0-30)"
+            }
+        ]
+    },
+    {
+        "name": "volumeUp",
+        "descr": "Увеличить громкость на 1 единицу",
+        "params": []
+    },
+    {
+        "name": "volumeDown",
+        "descr": "Уменьшить громкость на 1 единицу",
+        "params": []
+    },
+    {
+        "name": "EQ",
+        "descr": "Установить эквалайзер (0-Normal, 1-Pop, 2-Rock, 3-Jazz, 4-Classic, 5-Bass)",
+        "params": [
+            {
+                "descr": "Номер пресета EQ (0-5)"
+            }
+        ]
+    },
+    {
+        "name": "playFolder",
+        "descr": "Включить конкретный файл в конкретной папке (один раз)",
+        "params": [
+            {
+                "descr": "Номер папки (1-99)"
+            },
+            {
+                "descr": "Номер файла (1-255)"
+            }
+        ]
+    },
+    {
+        "name": "loopFolder",
+        "descr": "Зациклить воспроизведение всей папки по кругу (Музыкальный автомат)",
+        "params": [
+            {
+                "descr": "Номер папки (1-99)"
+            }
+        ]
+    },
+    {
+        "name": "playMp3Folder",
+        "descr": "Играть файл из специальной папки 'MP3'",
+        "params": [
+            {
+                "descr": "Номер файла"
+            }
+        ]
+    },
+    {
+        "name": "advertise",
+        "descr": "Голосовое уведомление: прервать музыку, сыграть файл из 'ADVERT' и продолжить",
+        "params": [
+            {
+                "descr": "Номер голосового файла"
+            }
+        ]
+    },
+    {
+        "name": "stopAdvertise",
+        "descr": "Прервать текущее голосовое уведомление и вернуть музыку",
+        "params": []
+    },
+    {
+        "name": "loop",
+        "descr": "Бесконечно зациклить один конкретный файл",
+        "params": [
+            {
+                "descr": "Номер файла"
+            }
+        ]
+    },
+    {
+        "name": "reset",
+        "descr": "Аппаратный сброс MP3-модуля",
+        "params": []
+    },
+    {
+        "name": "sleep",
+        "descr": "Перевести MP3-модуль в спящий режим",
+        "params": []
+    }
+]
+    },
+    "defActive": false,
+    "usedLibs": {
+        "esp32*": [
+            "dfrobot/DFRobotDFPlayerMini @ ^1.0.5"
+        ],
+        "esp32c6_4mb": [
+            "exclude"
+        ],
+        "esp32c6_8mb": [
+            "exclude"
+        ],
+        "esp82*": [
+            "dfrobot/DFRobotDFPlayerMini @ ^1.0.5"
+        ]
+    }
+}

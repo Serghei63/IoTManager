@@ -1,0 +1,56 @@
+{
+    "menuSection": "virtual_elements",
+    "configItem": [
+        {
+            "global": 0,
+            "name": "Диаграмма",
+            "type": "Reading",
+            "subtype": "Pie",
+            "id": "pie",
+            "widget": "pie",
+            "page": "",
+            "descr": "Диаграмма",
+            "int": 5,
+            "id1": "t",
+			"id2": "h",
+            "id3": "p",
+            "label1": "Success",
+			"label2": "Warning",
+            "label3": "Error",
+            "color": "primary"
+        }
+    ],
+    "about": {
+        "authorName": "Serghei Crasnicov",
+        "authorContact": "https://t.me/Serghei63",
+        "authorGit": "https://github.com/Serghei63",
+        "specialThanks": "",
+        "moduleName": "Pie",
+        "moduleVersion": "1.0",
+        "usedRam": {
+            "esp32_4mb": 15,
+            "esp8266_4mb": 15
+        },
+        "title": "Круговая диаграмма",
+        "moduleDesc": "Выводит в приложение круговую диадрамму с тремя секторами и данными , которые определены в виджете",
+        "propInfo": {
+            "int": "Интервал вывода диаграммы",
+            "id1": "ID 1 величины 1 (Error)",
+            "id2": "ID 2 величины 2 (Success)",
+            "id3": "ID 3 величины 3 (Warning)",
+            "label1": "Success может быть любым текстом, который будет отображаться в приложении",
+			"label2": "Warning может быть любым текстом, который будет отображаться в приложении",
+            "label3": "Error может быть любым текстом, который будет отображаться в приложении"
+        }
+    },
+    "defActive": false,
+    "usedLibs": {
+        "esp32*": [
+           
+        ],
+
+        "esp82*": [
+           
+        ]
+    }
+}

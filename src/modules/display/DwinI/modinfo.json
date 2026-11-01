@@ -1,0 +1,85 @@
+{
+    "menuSection": "screens",
+    "configItem": [
+        {
+            "name": "LCD Dwin экран",
+            "type": "Reading",
+            "subtype": "DwinI",
+            "id": "dwin",
+            "widget": "",
+            "page": "",
+            "descr": "",
+            "tx": 17,
+            "rx": 16,
+            "line": 2,
+            "speed": 115200,
+            "debug": 1
+        }
+    ],
+    "about": {
+        "authorName": "Ilya Belyakov",
+        "authorContact": "https://t.me/Biveraxe",
+        "authorGit": "https://github.com/biveraxe",
+        "specialThanks": "",
+        "moduleName": "DwinI",
+        "moduleVersion": "2.1",
+        "usedRam": {
+            "esp32_4mb": 15,
+            "esp8266_4mb": 15
+        },
+        "SubTypes": [
+            "DwinI"
+        ],
+        "title": "Экраны компании Dwin",
+        "moduleDesc": "Позволяет выводить на графические экраны фирмы Dwin информацию от элементов конфигурации, управлять видимостью трендов и выгружать буферы истории в определенные каналы.",
+        "propInfo": {
+            "tx": "TX пин",
+            "rx": "RX пин",
+            "speed": "Скорость UART",
+            "line": "Актуально только для ESP32: номер линии hardUART (0, 1, 2)",
+            "debug": "Включить отладку в консоль Serial (0 - выкл, 1 - вкл)"
+        },
+        "funcInfo": [
+            {
+                "name": "setPage",
+                "descr": "Переключить страницу дисплея DWIN по её номеру",
+                "params": [
+                    "page (номер страницы)"
+                ]
+            },
+            {
+                "name": "writeRaw",
+                "descr": "Прямая запись 16-битного значения в VP или SP адрес RAM экрана",
+                "params": [
+                    "addr (VP/SP адрес)",
+                    "value (16-битное число)"
+                ]
+            },
+            {
+                "name": "addPoint",
+                "descr": "Добавление единичной точки в тренд графика DWIN",
+                "params": [
+                    "channel (номер канала графиков, 0..7)",
+                    "value (числовое значение точки)"
+                ]
+            },
+            {
+                "name": "drawHistoryToChannel",
+                "descr": "Выгрузка истории из RingBuffer в указанный канал дисплея DWIN",
+                "params": [
+                    "srcChannel (номер источника/буфера в RingBuffer)",
+                    "dstChannel (номер канала на дисплее DWIN)"
+                ]
+            }
+        ]
+    },
+    "defActive": false,
+    "usedLibs": {
+        "esp32*": [
+            "plerup/EspSoftwareSerial"
+        ],
+        "esp82*": [
+            "plerup/EspSoftwareSerial"
+        ]
+    }
+}
