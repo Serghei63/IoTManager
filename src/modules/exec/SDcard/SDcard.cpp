@@ -94,9 +94,9 @@ class SDcard : public IoTItem {
         if (!sd.exists("/lg")) {
             sd.mkdir("/lg");
         }
-        if (!sd.exists("/logs")) {
-            sd.mkdir("/logs");
-        }
+       // if (!sd.exists("/logs")) {
+       //      sd.mkdir("/logs");
+       // }
     }
 
     // Метод проверки готовности карты для внешних модулей (например, логера)
