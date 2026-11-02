@@ -5,7 +5,7 @@
         }
     },
     "modules": {
-        "virtual_elments": [
+        "virtual_elements": [
             {
                 "path": "src/modules/virtual/Benchmark",
                 "active": false
@@ -47,6 +47,18 @@
                 "active": true
             },
             {
+                "path": "src/modules/virtual/Lognew2",
+                "active": false
+            },
+            {
+                "path": "src/modules/virtual/LogSd",
+                "active": false
+            },
+            {
+                "path": "src/modules/virtual/LogTxt",
+                "active": false
+            },
+            {
                 "path": "src/modules/virtual/Math",
                 "active": true
             },
@@ -55,8 +67,24 @@
                 "active": false
             },
             {
+                "path": "src/modules/virtual/Pie",
+                "active": false
+            },
+            {
                 "path": "src/modules/virtual/Ping",
                 "active": false
+            },
+            {
+                "path": "src/modules/virtual/RingBuffer",
+                "active": false
+            },
+            {
+                "path": "src/modules/virtual/Runtime",
+                "active": true
+            },
+            {
+                "path": "src/modules/virtual/SDLoging",
+                "active": true
             },
             {
                 "path": "src/modules/virtual/SolarCalc",
@@ -101,6 +129,10 @@
                 "active": false
             },
             {
+                "path": "src/modules/sensors/Am2302",
+                "active": false
+            },
+            {
                 "path": "src/modules/sensors/AnalogAdc",
                 "active": false
             },
@@ -137,6 +169,14 @@
                 "active": false
             },
             {
+                "path": "src/modules/sensors/Can",
+                "active": false
+            },
+            {
+                "path": "src/modules/sensors/CanBUS",
+                "active": false
+            },
+            {
                 "path": "src/modules/sensors/Dht1122",
                 "active": false
             },
@@ -149,8 +189,12 @@
                 "active": false
             },
             {
+                "path": "src/modules/sensors/Ds2482Combined",
+                "active": true
+            },
+            {
                 "path": "src/modules/sensors/Emon",
-                "active": false
+                "active": true
             },
             {
                 "path": "src/modules/sensors/EnergyMon485",
@@ -162,6 +206,10 @@
             },
             {
                 "path": "src/modules/sensors/ExternalMQTT",
+                "active": false
+            },
+            {
+                "path": "src/modules/sensors/F1031",
                 "active": false
             },
             {
@@ -177,6 +225,10 @@
                 "active": false
             },
             {
+                "path": "src/modules/sensors/Hlw8032",
+                "active": false
+            },
+            {
                 "path": "src/modules/sensors/Hx710",
                 "active": false
             },
@@ -186,7 +238,7 @@
             },
             {
                 "path": "src/modules/sensors/Impulse",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/sensors/Ina219",
@@ -213,7 +265,7 @@
                 "active": false
             },
             {
-                "path": "src/modules/sensors/ModbusRTU",
+                "path": "src/modules/sensors/ModbusGroup",
                 "active": false
             },
             {
@@ -291,11 +343,19 @@
             {
                 "path": "src/modules/sensors/UART",
                 "active": false
+            },
+            {
+                "path": "src/modules/sensors/Vl53l0x",
+                "active": false
             }
         ],
         "executive_devices": [
             {
                 "path": "src/modules/exec/AnalogBtn",
+                "active": false
+            },
+            {
+                "path": "src/modules/exec/Apds9960",
                 "active": false
             },
             {
@@ -320,7 +380,7 @@
             },
             {
                 "path": "src/modules/exec/Enconder",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/exec/EspCam",
@@ -351,12 +411,24 @@
                 "active": false
             },
             {
+                "path": "src/modules/exec/Mfrc522",
+                "active": false
+            },
+            {
                 "path": "src/modules/exec/Mp3",
                 "active": false
             },
             {
+                "path": "src/modules/exec/Mpu6050",
+                "active": false
+            },
+            {
                 "path": "src/modules/exec/Multitouch",
-                "active": true
+                "active": false
+            },
+            {
+                "path": "src/modules/exec/MyLo_ra",
+                "active": false
             },
             {
                 "path": "src/modules/exec/MySensors",
@@ -372,6 +444,14 @@
             },
             {
                 "path": "src/modules/exec/Pwm8266",
+                "active": false
+            },
+            {
+                "path": "src/modules/exec/Radio",
+                "active": false
+            },
+            {
+                "path": "src/modules/exec/Radio1334",
                 "active": false
             },
             {
@@ -425,6 +505,18 @@
                 "active": false
             },
             {
+                "path": "src/modules/display/Eink42",
+                "active": false
+            },
+            {
+                "path": "src/modules/display/Gc9",
+                "active": false
+            },
+            {
+                "path": "src/modules/display/Gc9A",
+                "active": false
+            },
+            {
                 "path": "src/modules/display/GyverLAMP",
                 "active": false
             },
@@ -434,6 +526,10 @@
             },
             {
                 "path": "src/modules/display/LedFX",
+                "active": false
+            },
+            {
+                "path": "src/modules/display/Max7219",
                 "active": false
             },
             {
@@ -454,6 +550,14 @@
             },
             {
                 "path": "src/modules/display/Smi2_m",
+                "active": false
+            },
+            {
+                "path": "src/modules/display/St7735",
+                "active": false
+            },
+            {
+                "path": "src/modules/display/St7789",
                 "active": false
             },
             {

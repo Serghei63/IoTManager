@@ -1,0 +1,70 @@
+{
+    "menuSection": "virtual_elements",
+    "configItem": [
+        {
+            "global": 0,
+            "name": "Модуль истории для графиков",
+            "type": "Writing",
+            "subtype": "RingBuffer",
+            "id": "logbuf",
+            "widget": "",
+            "page": "",
+            "descr": "Логирование элементов в кольцевой буфер",
+            "size": 100,
+            "int": 60,
+            "targets": "temp1,press1,pzem_p,humidity",
+            "debug": 1
+        }
+    ],
+    "about": {
+        "authorName": "Crasnicov Serghei",
+        "authorContact": "",
+        "authorGit": "",
+        "specialThanks": "",
+        "moduleName": "RingBuffer",
+        "moduleVersion": "1.0",
+        "usedRam": {
+            "esp32_4mb": 15,
+            "esp8266_4mb": 15
+        },
+        "title": "Логирование в памяти",
+        "moduleDesc": "Расширение, позволяющее логировать список любых величин в RAM для вывода графиков (DWIN, Nextion, Web)",
+        "propInfo": {
+            "size": "Количество точек на каждый канал (размер буфера в RAM)",
+            "int": "Интервал логирования в секундах (0 - только по событию / из скрипта ). Для ESP8266 рекомендуется не менее 300 сек (5 мин)",
+            "targets": "Список ID элементов для автоматического логирования через запятую (например: temp1,press1,pzem_p)"
+        },
+        "funcInfo": [
+            {
+                "name": "push",
+                "descr": "Принудительно записать текущие значения targets в буфер",
+                "params": []
+            },
+            {
+                "name": "save",
+                "descr": "Принудительно сделать снимок всех targets и записать в буфер (вне таймера)",
+                "params": []
+            },
+            {
+                "name": "print", 
+                "descr": "Вывести содержимое буфера в веб-консоль",
+                "params": ["номер канала"]
+            },
+            {
+                "name": "getCount", 
+                "descr": "Получить число накопленных точек",
+                "params": ["номер канала"]
+            },
+            {
+                "name": "getPoint",
+                "descr": "Получить значение точки",
+                "params": ["номер канала, номер в targets"]
+            }
+        ]
+    },
+    "defActive": false,
+    "usedLibs": {
+        "esp32*": [],
+        "esp82*": []
+    }
+}
