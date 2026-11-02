@@ -1,0 +1,50 @@
+{
+    "menuSection": "sensors",
+    "configItem": [
+        {
+            "global": 0,
+            "name": "Расход газа",
+            "type": "Reading",
+            "subtype": "F1031V",
+            "id": "f10",
+            "widget": "anydataTmp",
+            "page": "Сенсоры",
+            "descr": "Температура",
+            "maxFlow": 25,
+            "samples": 10,
+            "map": "1,1024,1,1024",
+            "plus": 0,
+            "multiply": 1,
+            "round": 1,
+            "pin": 34,
+            "int": 15,
+            "avgSteps": 1
+        }
+    ],
+    "about": {
+        "authorName": "Crasnicov Serghei",
+        "authorContact": "",
+        "authorGit": "",
+        "exampleURL": "https://iotmanager.org/wiki",
+        "specialThanks": "@Ctrl_v1",
+        "moduleName": "F1031",
+        "moduleVersion": "1.0",
+        "usedRam": {
+            "esp32_4mb": 15,
+            "esp8266_4mb": 15
+        },
+        "title": "Расход газа",
+        "moduleDesc": "Позволяет получить текущее значение на аналоговом GPIO или усредненное для avgSteps измерений каждого вызова loop.",
+        "propInfo": {
+            "pin": "Аналоговый GPIO номер, к которому подключен датчик.",
+            "avgSteps": "Количество считываний для усреднения. При =1, считывается одно значение за каждый период опроса., при =0, int считается в миллисекундах",
+            "int": "Количество секунд между опросами датчика, если avgSteps > 0. Установите avgSteps = 0 и int будет считаться в миллисекундах (ВНИМАНИЕ! генерация событий чаще секунды может привести к нестабильности системы.)"
+        }
+    },
+    "defActive": false,
+    "usedLibs": {
+        "esp32*": [],
+        "esp82*": [],
+        "bk72*": []
+    }
+}

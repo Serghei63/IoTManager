@@ -1,0 +1,66 @@
+{
+    "menuSection": "executive_devices",
+    "configItem": [
+        {
+            "global": 0,
+            "name": "Internet Radio",
+            "type": "Reading",
+            "subtype": "RadioVs1053",
+            "id": "radio",
+            "widget": "",
+            "page": "Radio",
+            "descr": "",
+            "int": 1,
+            "pins": "4,17,22",
+            "volume": 80,
+            "url": "http://pub0201.101.ru:8000/stream/pro/aac/64/192"
+        }
+    ],
+    "about": {
+        "authorName": "Serghei Crasnicov",
+        "authorContact": "",
+        "authorGit": "",
+        "specialThanks": "",
+        "moduleName": "Radio",
+        "moduleVersion": "1.0",
+        "usedRam": {
+            "esp32_4mb": 15,
+            "esp8266_4mb": 15
+        },
+        "title": "Radio",
+        "moduleDesc": "Позволяет управлять модулем проигрывания MP3 файлов с SD-карты по serial интерфейсу (DFplayer mini).",
+        "propInfo": {
+            "int": "Периодичность в секундах опроса состояния радио.",
+            "pins": "Список GPIO через запятую, к которым подключено радио.",
+            "volume": "Уровень громкости при инициализации."
+        },
+        "retInfo": "Содержит описание текущего статуса модуля, например, Time Out! - не может подключиться",
+        "funcInfo": [
+            {
+                "name": "play",
+                "descr": "Проиграть трек по URL . Пример: play(\"http://pub0201.101.ru:8000/stream/pro/aac/64/192\", \"Рок ФМ\")",
+                "params": [
+                    "URL трека", "Название Станции"
+                ]
+            },
+            {
+                "name": "stop",
+                "descr": "Остановить проигрывание трека",
+                "params": []
+            },
+            {
+                "name": "volume",
+                "descr": "Установить громкость",
+                "params": [
+                    "Значение громкости"
+                ]
+            }
+        ]
+    },
+    "defActive": false,
+    "usedLibs": {
+        "esp32_wrover_n16r8": [
+            "https://github.com/schreibfaul1/ESP32-vs1053_ext"  
+        ]
+    }
+}

@@ -1,0 +1,50 @@
+{
+    "menuSection": "executive_devices",
+    "configItem": [
+        {
+            "global": 0,
+            "name": "Датчик жестов APDS9960",
+            "type": "Reading",
+            "subtype": "ApdsGesture",
+            "id": "apds",
+            "widget": "anydataDef",
+            "page": "Жест",
+            "descr": "Значение",
+            "needSave": 0,
+            "addr": "0x39",
+            "gain": 4,
+            "led": 100,
+            "debug": 1
+        }
+    ],
+    "about": {
+        "authorName": "Serghei Crasnicov",
+        "authorContact": "",
+        "authorGit": "",
+        "specialThanks": "",
+        "moduleName": "Apds9960",
+        "moduleVersion": "1.0",
+        "usedRam": {
+            "esp32_4mb": 15,
+            "esp8266_4mb": 15
+        },
+        "title": "Датчик жестов APDS9960",
+        "moduleDesc": "Модуль для работы с датчиком жестов APDS9960. Возвращает числовой код жеста в значение элемента: 1 - Вверх (UP), 2 - Вниз (DOWN), 3 - Влево (LEFT), 4 - Вправо (RIGHT)",
+        "propInfo": {
+            "needSave": "Сохранять или нет последнее значение",
+            "addr": "Адрес устройства на шине, обычно 0x39",
+            "gain": "Усиление приема - 1 (Минимум), 2 (Среднее), 4 (Максимум)",
+            "led": "Ток через светодиод. Допустимые значения - 12 (12.5 mA (Минимум), 25 (25 mA), 50 (50 ma), 100 (100 mA (Максимум))",
+            "debug": "Включить вывод в Serial отладочную информацию (0 - выключить, 1 - включить)"
+        }
+    },
+    "defActive": false,
+    "usedLibs": {
+        "esp32*": [
+            "sparkfun/SparkFun APDS9960 RGB and Gesture Sensor @ ^1.4.3"
+        ],
+        "esp82*": [
+            "sparkfun/SparkFun APDS9960 RGB and Gesture Sensor @ ^1.4.3"
+        ]
+    }
+}

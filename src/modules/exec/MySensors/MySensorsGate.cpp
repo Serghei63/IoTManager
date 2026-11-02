@@ -4,6 +4,8 @@
 #include "MySensorsGate.h"
 
 #ifdef MYSENSORS
+
+bool _debug; 
 // callback библиотеки mysensors
 void receive(const MyMessage& message) {
     String inMsg = String(message.getSender()) + "," +   // node-id
@@ -15,7 +17,9 @@ void receive(const MyMessage& message) {
     // Serial.println("=>" + inMsg);
 
     mysensorBuf += inMsg;
+  
 }
+
 
 String parseToString(const MyMessage& message) {
     String value = "error";
@@ -47,6 +51,7 @@ String parseToString(const MyMessage& message) {
         default:
             return value;
     }
+     return value; // <-- явный возврат на всякий случай
 }
 
 #endif
@@ -59,9 +64,100 @@ class MySensorsGate : public IoTItem {
 
     void loop() { loopMySensorsExecute(); }
 
-    ~MySensorsGate(){};
+          ~MySensorsGate(){};
 
-    void loopMySensorsExecute() {
+        IoTValue execute(String command, std::vector<IoTValue> &param) {
+
+    if (command == "send") {
+        
+        if (param.size() >= 5) {
+            uint8_t nodeId  = param[0].valD;
+            uint8_t childId = param[1].valD;
+            uint8_t type    = param[2].valD; // Передаваемый тип данных (V_...)
+            uint8_t cmd     = param[3].valD; // Тип команды (C_SET=1, C_REQ=2)
+            
+            // Создаем пустой объект сообщения
+            MyMessage msg;
+            build(msg, nodeId, childId, (mysensors_command_t)cmd, (mysensors_data_t)type);
+
+            bool ok = false;
+
+             // Группируем типы данных MySensors по их формату
+
+            switch (type) {
+                // --- 1. BOOLEAN (Логические: 0 или 1) ---
+                case V_STATUS:      // 2 (ранее V_LIGHT)
+                case V_TRIPPED:     // 16 (датчики движения/открытия)
+                case V_ARMED:       // 15
+                case V_LOCK_STATUS: // 36
+                    ok = send(msg.set((bool)param[4].valD));
+                    break;
+
+                // --- 2. FLOAT (Числа с плавающей точкой) ---
+                case V_TEMP:        // 0 (Температура)
+                case V_HUM:         // 1 (Влажность)
+                case V_PRESSURE:    // 4 (Давление)
+                case V_UV:          // 3 (УФ-индекс)
+                case V_WEIGHT:      // 34 (Вес)
+                case V_VOLTAGE:     // 38 (Напряжение)
+                case V_CURRENT:     // 39 (Ток)
+
+                    // Отправляем как float (указываем 2 знака после запятой)
+                    ok = send(msg.set((float)param[4].valD, 2));
+                    break;
+
+                // --- 3. LONG / UNSIGNED LONG (32-битные числа) ---
+                case V_VAR1:        // 24 (Пользовательские переменные)
+                case V_VAR2:        // 25
+                case V_VAR3:        // 26
+                case V_VAR4:        // 27
+                case V_VAR5:        // 28
+                case V_DISTANCE:    // 29 (Расстояние может быть большим)
+                case V_LIGHT_LEVEL: // 37
+
+                    // Важно для переменных, хранящих большие значения (pt=4)
+                    ok = send(msg.set((uint32_t)param[4].valD));
+                    break;
+
+                // --- 4. STRING (Строки текста) ---
+                case V_TEXT:        // 47
+                case V_CUSTOM:      // 48
+                case V_IR_SEND:     // 32
+                case V_IR_RECEIVE:  // 33
+                case V_RGB:         // 40 (Обычно передается как HEX строка, напр. "FF0000")
+                case V_RGBW:        // 41
+
+                    // *Примечание: Если структура IoTValue поддерживает строки (например, param[4].valS),
+                    // используйте msg.set(param[4].valS.c_str()). Если нет, конвертируем значение в строку.
+
+                    ok = send(msg.set(String(param[4].valD).c_str()));
+                    break;
+
+                // --- 5. INTEGER (Стандартные целые числа: 16-бит) ---
+                // Сюда попадают V_PERCENTAGE(3), V_WATT(17), V_VOLUME(20), V_DIRECTION(12) и всё остальное
+                
+                default:
+                    ok = send(msg.set((int)param[4].valD));
+                    break;
+            }
+
+            SerialPrint(
+                "i",
+                "MySensors",
+                "Send node=" + String(nodeId) +
+                " child=" + String(childId) +
+                " type=" + String(type) +
+                " cmd=" + String(cmd) +
+                " value=" + String(param[4].valD) + // Можно выводить исходное значение для логов
+                " result=" + String(ok)
+            );
+        }
+    }
+    return {};
+}
+
+    void loopMySensorsExecute() {    
+
         if (mysensorBuf.length()) {
             String tmp = selectToMarker(mysensorBuf, ";");
 
@@ -125,216 +221,13 @@ class MySensorsGate : public IoTItem {
     }
 
     void sensorType(int index, int& num, String& widget, String& descr) {
-        switch (index) {
-            case 0:
-                descr = F("Door#and#window#sensors");
-                widget = F("alarm");
-                num = 1;
-                break;
-            case 1:
-                descr = F("Motion#sensors");
-                widget = F("alarm");
-                num = 1;
-                break;
-            case 2:
-                descr = F("Smoke#sensor");
-                widget = F("fillgauge");
-                num = 1;
-                break;
-            case 3:
-                descr = F("Binary#device#(on/off)");
-                widget = F("toggleBtn");
-                num = 2;
-                break;
-            case 4:
-                descr = F("Dimmable#device");
-                // to do
-                // widget = F("range");
-                // num = 2;
-                break;
-            case 5:
-                descr = F("Window#covers#or#shades");
-                // to do
-                // widget = F("range");
-                // num = 2;
-                break;
-            case 6:
-                descr = F("Temperature#sensor");
-                widget = F("anydataTemp");
-                num = 1;
-                break;
-            case 7:
-                descr = F("Humidity#sensor");
-                widget = F("anydataHum");
-                num = 1;
-                break;
-            case 8:
-                descr = F("Pressure#sensor");
-                widget = F("anydataPress");
-                num = 1;
-                break;
-            case 9:
-                descr = F("Wind#sensor");
-                widget = F("anydataTime");
-                num = 1;
-                break;
-            case 10:
-                descr = F("Rain#sensor");
-                widget = F("anydataTime");
-                num = 1;
-                break;
-            case 11:
-                descr = F("UV#sensor");
-                widget = F("anydataTime");
-                num = 1;
-                break;
-            case 12:
-                descr = F("Weight#sensor");
-                widget = F("anydataTime");
-                num = 1;
-                break;
-            case 13:
-                descr = F("Power#measuring#device");
-                widget = F("anydataWtt");
-                num = 1;
-                break;
-            case 14:
-                descr = F("Heater#device");
-                widget = F("anydataTemp");
-                num = 1;
-                break;
-            case 15:
-                descr = F("Distance#sensor");
-                widget = F("anydata");
-                num = 1;
-                break;
-            case 16:
-                descr = F("Light#sensor");
-                widget = F("anydataTime");
-                num = 1;
-                break;
-            case 17:
-                descr = F("Arduino#node#device");
-                widget = F("anydata");
-                num = 1;
-                break;
-            case 18:
-                descr = F("Arduino#repeating#node#device");
-                widget = F("anydata");
-                num = 1;
-                break;
-            case 19:
-                descr = F("Lock#device");
-                widget = F("toggleBtn");
-                num = 2;
-                break;
-            case 20:
-                descr = F("Ir#sender/receiver#device");
-                widget = F("toggleBtn");
-                num = 2;
-                break;
-            case 21:
-                descr = F("Water#meter");
-                widget = F("anydata");
-                num = 1;
-                break;
-            case 22:
-                descr = F("Air#quality#sensor");
-                widget = F("anydata");
-                num = 1;
-                break;
-            case 23:
-                descr = F("Custom#sensor");
-                widget = F("anydata");
-                num = 1;
-                break;
-            case 24:
-                descr = F("Dust#level#sensor");
-                widget = F("anydata");
-                num = 1;
-                break;
-            case 25:
-                descr = F("Scene#controller#device");
-                widget = F("anydata");
-                num = 1;
-                break;
-            case 26:
-                descr = F("RGB#light");
-                widget = F("anydata");
-                num = 1;
-                break;
-            case 27:
-                descr = F("RGBW#light#(with#separate#white#component)");
-                widget = F("anydata");
-                num = 1;
-                break;
-            case 28:
-                descr = F("Color#sensor");
-                widget = F("anydata");
-                num = 1;
-                break;
-            case 29:
-                descr = F("Thermostat/HVAC#device");
-                widget = F("anydata");
-                num = 1;
-                break;
-            case 30:
-                descr = F("Multimeter#device");
-                widget = F("anydataVlt");
-                num = 1;
-                break;
-            case 31:
-                descr = F("Sprinkler#device");
-                widget = F("anydata");
-                num = 1;
-                break;
-            case 32:
-                descr = F("Water#leak#sensor");
-                widget = F("alarm");
-                num = 1;
-                break;
-            case 33:
-                descr = F("Sound#sensor");
-                widget = F("anydata");
-                num = 1;
-                break;
-            case 34:
-                descr = F("Vibration#sensor");
-                widget = F("anydata");
-                num = 1;
-                break;
-            case 35:
-                descr = F("Moisture#sensor");
-                widget = F("anydata");
-                num = 1;
-                break;
-            case 36:
-                descr = F("LCD#text#device");
-                widget = F("anydata");
-                num = 1;
-                break;
-            case 37:
-                descr = F("Gas#meter");
-                widget = F("anydata");
-                num = 1;
-                break;
-            case 38:
-                descr = F("GPS#Sensor");
-                widget = F("anydata");
-                num = 1;
-                break;
-            case 39:
-                descr = F("Water#quality#sensor");
-                widget = F("anydata");
-                num = 1;
-                break;
-            default:
+            
                 descr = F("Unknown");
                 widget = F("anydata");
                 num = 1;
-                break;
-        }
-    }
+
+            }
+
 };
 
 class MySensorsNode : public IoTItem {
@@ -361,6 +254,8 @@ class MySensorsNode : public IoTItem {
 
         dataFromNode = false;
         SerialPrint("i", "MySensors", "Node initialized");
+
+        jsonRead(parameters, "debug", _debug);
     }
 
     void setValue(const IoTValue& Value, bool genEvent = true) {

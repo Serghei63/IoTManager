@@ -1,0 +1,46 @@
+{
+    "menuSection": "sensors",
+    "configItem": [
+        {
+            "global": 0,
+            "name": "Лазерный дальномер Vl53l0x",
+            "num": 1,
+            "type": "Reading",
+            "subtype": "VL53L0X",
+            "id": "vl",
+            "widget": "anydataCm",
+            "page": "Сенсоры",
+            "descr": "Расстояние",
+            "xshut": 2,
+            "int": 5,
+            "multiply": 0.1
+        }
+    ],
+    "about": {
+        "authorName": "Crasnicov Serghei",
+        "authorContact": "",
+        "authorGit": "",
+        "specialThanks": "@Ctrl_v1",
+        "moduleName": "Vl53l0x",
+        "moduleVersion": "1.0",
+        "usedRam": {
+            "esp32_4mb": 15,
+            "esp8266_4mb": 15
+        },
+        "title": "Лазерный дальномер VL53l0x",
+        "moduleDesc": "Позволяет получить значение расстояния до препятствия с использованием лазерного датчика.",
+        "propInfo": {
+            "xshut": "GPIO контакта сна",
+            "int": "Количество секунд между опросами датчика."
+        }
+    },
+    "defActive": false,
+    "usedLibs": {
+        "esp32*": [
+            "https://github.com/adafruit/Adafruit_VL53L0X"
+        ],
+        "esp82*": [
+            "https://github.com/adafruit/Adafruit_VL53L0X"
+        ]
+    }
+}
