@@ -174,6 +174,63 @@ const String getTimeLocal_hhmmss() {
     return String(buf);
 }
 
+//---------------------------
+// Локальное дата время "день недели"
+const String getTimeLocal_Weekday(bool textMode) {
+    if (textMode) {
+        // Если запросили текст
+        switch (_time_local.day_of_week) {
+            case 1: return "Воскресенье";
+            case 2: return "Понедельник";
+            case 3: return "Вторник";
+            case 4: return "Среда";
+            case 5: return "Четверг";
+            case 6: return "Пятница";
+            case 7: return "Суббота";
+            default: return "";
+        }
+    } else {
+        // Если нужен системный номер дня недели (Пн = 1 ... Вс = 7)
+        switch (_time_local.day_of_week) {
+            case 1: return "7";
+            case 2: return "1";
+            case 3: return "2";
+            case 4: return "3";
+            case 5: return "4";
+            case 6: return "5";
+            case 7: return "6";
+            default: return "0";
+        }
+    }
+}
+   
+//---------------------------
+// Локальное дата время "месяц"
+const String getTimeLocal_Month(bool textMode) {
+    if (textMode) {
+        // Если запросили название месяца текстом
+        switch (_time_local.month) {
+            case 1:  return "Январь";
+            case 2:  return "Февраль";
+            case 3:  return "Март";
+            case 4:  return "Апрель";
+            case 5:  return "Май";
+            case 6:  return "Июнь";
+            case 7:  return "Июль";
+            case 8:  return "Август";
+            case 9:  return "Сентябрь";
+            case 10: return "Октябрь";
+            case 11: return "Ноябрь";
+            case 12: return "Декабрь";
+            default: return "";
+        }
+    } else {
+        // Если нужен номер месяца строкой ("1" ... "12")
+        return String(_time_local.month);
+    }
+}
+//---------------------------
+
 const String getDateTimeDotFormated() {
     char buf[32];
     sprintf(buf, "%02d.%02d.%02d %02d:%02d:%02d", _time_local.day_of_month, _time_local.month, _time_local.year, _time_local.hour, _time_local.minute, _time_local.second);

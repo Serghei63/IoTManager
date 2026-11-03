@@ -436,15 +436,18 @@ enum SysOp {
     sysop_notfound = 0,
     sysop_reboot = 1,
     sysop_digitalRead,
-    sysop_analogRead,     //
-    sysop_digitalWrite,   //
-    sysop_digitalInvert,  //
-    sysop_deepSleep,      //
-    sysop_getHours,       //
-    sysop_getMinutes,     //
-    sysop_getSeconds,     //
-    sysop_getMonth,       //
+    sysop_analogRead,
+    sysop_digitalWrite,
+    sysop_digitalInvert,
+    sysop_deepSleep,
+    sysop_getHours,
+    sysop_getMinutes,
+    sysop_getSeconds,
+    sysop_getMonth,
+    sysop_getMonthText,     // <--- Добавлено
     sysop_getDay,
+    sysop_getWeekday,       // <--- Добавлено
+    sysop_getWeekdayText,   // <--- Добавлено
     sysop_gethhmm,
     sysop_gethhmmss,
     sysop_getTime,
@@ -470,7 +473,10 @@ static SysOp getSysOp(uint32_t calleeHash) {
         case hashLit("getMinutes"): return sysop_getMinutes;
         case hashLit("getSeconds"): return sysop_getSeconds;
         case hashLit("getMonth"): return sysop_getMonth;
+        case hashLit("getMonthText"): return sysop_getMonthText;       // <--- Добавлено
         case hashLit("getDay"): return sysop_getDay;
+        case hashLit("getWeekday"): return sysop_getWeekday;         // <--- Добавлено
+        case hashLit("getWeekdayText"): return sysop_getWeekdayText; // <--- Добавлено
         case hashLit("gethhmm"): return sysop_gethhmm;
         case hashLit("gethhmmss"): return sysop_gethhmmss;
         case hashLit("getTime"): return sysop_getTime;
@@ -503,8 +509,19 @@ IoTValue sysExecute(SysOp command, std::vector<IoTValue> &param) {
             case sysop_getMonth:
                 value.valD = _time_local.month;
                 break;
+            case sysop_getMonthText:
+                value.isDecimal = false;
+                value.valS = getTimeLocal_Month(true); // <--- Вызываем текстовый месяц из NTP.cpp
+                break;
             case sysop_getDay:
                 value.valD = _time_local.day_of_month;
+                break;
+            case sysop_getWeekday:
+                value.valD = _time_local.day_of_week; 
+                break;
+            case sysop_getWeekdayText:
+                value.isDecimal = false; // <-- Снимаем флаг числа, переводим в строку!
+                value.valS = getTimeLocal_Weekday(true); 
                 break;
             case sysop_gethhmm:
                 value.isDecimal = false;
