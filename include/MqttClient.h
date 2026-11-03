@@ -24,7 +24,8 @@ boolean publishStatusMqtt(const String& topic, const String& data);
 boolean publishEvent(const String& topic, const String& data);
 void mqttSubscribeExternal(String topic, bool usePrefix = false);
 
-bool publishChartFileToMqtt(String path, String id, int maxCount);
+//bool publishChartFileToMqtt(String path, String id, int maxCount);
+bool publishChartFileToMqtt(String path, String id, int maxCount, String seriesArray = "", String typeChart = "line");
 
 void publishWidgets();
 

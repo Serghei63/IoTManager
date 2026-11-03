@@ -1,6 +1,11 @@
 #include "StandWebServer.h"
 #ifdef STANDARD_WEB_SERVER
 
+#ifdef SD_ENABLE
+#include <SdFat.h>
+extern SdFat sd;
+#endif
+
 File uploadFile;
 String unsupportedFiles = String();
 
@@ -278,11 +283,36 @@ String getContentType(String filename) {
 /*
    Read the given file from the filesystem and stream it back to the client
 */
+
+
 bool handleFileRead(String path) {
-    //    DBG_OUTPUT_PORT.println(String("handleFileRead: ") + path);
     if (path.endsWith("/")) {
         path += "index.html";
     }
+
+    // --- Единый блок обработки SD-карты для путей /lgsd/ ---
+#ifdef SD_ENABLE
+if (path.startsWith("lgsd/")) {
+    if (sd.exists(path.c_str())) {
+        FsFile file = sd.open(path.c_str(), O_RDONLY);
+        if (file) {
+            HTTP.sendHeader("Content-Type", "text/plain");
+            HTTP.sendHeader("Content-Length", String(file.fileSize()));
+            HTTP.send(200); // Отправляем заголовки и статус 200, не закрывая соединение
+            
+            uint8_t buffer[512];
+            while (file.available()) {
+                int bytesRead = file.read(buffer, sizeof(buffer));
+                HTTP.client().write(buffer, bytesRead);
+            }
+            file.close();
+            return true;
+        }
+    }
+    return false;
+}
+#endif
+    // ----------------------------------------------------
 
     String contentType;
     if (HTTP.hasArg("download")) {
@@ -303,7 +333,7 @@ bool handleFileRead(String path) {
     if (FileFS.exists(path)) {
         File file = FileFS.open(path, "r");
         if (HTTP.streamFile(file, contentType) != file.size()) {
-            //           DBG_OUTPUT_PORT.println("Sent less data than expected!");
+            // Sent less data than expected!
         }
         file.close();
         return true;
@@ -311,7 +341,6 @@ bool handleFileRead(String path) {
 
     return false;
 }
-
 /*
    As some FS (e.g. LittleFS) delete the parent folder when the last child has been removed,
    return the path of the closest parent still existing
@@ -629,44 +658,83 @@ void handleFileList() {
     }
 
     String path = HTTP.arg("dir");
+    
+    // 1. Если запрашивают корень "/", выводим файлы LittleFS + добавляем виртуальную папку /lgsd для SD-карты
+    if (path == "/") {
+        File root = FileFS.open(path);
+        String output = "[";
+        if (root.isDirectory()) {
+            File file = root.openNextFile();
+            while (file) {
+                if (output != "[") output += ',';
+                output += "{\"type\":\"" + String(file.isDirectory() ? "dir" : "file") + 
+                          "\",\"size\":\"" + String(file.size()) + 
+                          "\",\"name\":\"" + String(file.name()) + "\"}";
+                file = root.openNextFile();
+            }
+        }
+        // Добавляем папку /lgsd в корень веб-интерфейса
+        #ifdef SD_ENABLE
+        if (sd.exists("/")) {
+            if (output != "[") output += ',';
+            output += "{\"type\":\"dir\",\"size\":\"0\",\"name\":\"lgsd\"}";
+        }
+        #endif
+        output += "]";
+        HTTP.send(200, "text/json", output);
+        return;
+    }
+
+    // 2. Если запрашивают содержимое папки /lgsd или вложенных папок на SD-карте
+#ifdef SD_ENABLE
+    if (path.startsWith("/lgsd")) {
+        FsFile dir = sd.open(path.c_str());
+        String output = "[";
+        if (dir && dir.isDirectory()) {
+            FsFile entry = dir.openNextFile();
+            while (entry) {
+                char nameBuf[64];
+                entry.getName(nameBuf, sizeof(nameBuf));
+                String itemName = String(nameBuf);
+                if (itemName != "" && itemName != "." && itemName != "..") {
+                    if (output != "[") output += ',';
+                    
+                    // Формируем чистый путь для веб-интерфейса
+                    String relativePath = path;
+                    if (!relativePath.endsWith("/")) relativePath += "/";
+                    relativePath += itemName;
+                    
+                    // Имя элемента для вывода (убираем ведущий слеш, если есть)
+                    String displayName = relativePath;
+                    if (displayName.startsWith("/")) displayName.remove(0, 1);
+
+                    output += "{\"type\":\"" + String(entry.isDirectory() ? "dir" : "file") + 
+                              "\",\"size\":\"" + String(entry.size()) + 
+                              "\",\"name\":\"" + displayName + "\"}";
+                }
+                entry = dir.openNextFile();
+            }
+            dir.close();
+        }
+        output += "]";
+        HTTP.send(200, "text/json", output);
+        return;
+    }
+#endif
+
+    // 3. Стандартная обработка остальных папок LittleFS/SPIFFS
     if (path != "/" && !FileFS.exists(path)) {
         return replyBadRequest("BAD PATH");
     }
-    //path = "/build/";
-    Serial.println("handleFileList: " + path);
-#if defined LIBRETINY
-    File root = FileFS.open(path.c_str());
-    //Dir root = FileFS.openDir(path);
-    Serial.println("handleFileList FIRST OPEN  Name: " + String(root.name()));
-#else
     File root = FileFS.open(path);
-#endif    
-    path = String();
-
     String output = "[";
     if (root.isDirectory()) {
-        Serial.println("handleFileList IS DIR: " + String(root.name()));
-       //root.close();
         File file = root.openNextFile();
-        Serial.println("handleFileList openNextFile: " + String(file.name()));
-
         while (file) {
-                  
-            if (output != "[") {
-                output += ',';
-            }
-            output += "{\"type\":\"";
-            //         output += (file.isDirectory()) ? "dir" : "file";
-            if (file.isDirectory()) {
-                output += "dir";
-            } else {
-                output += F("file\",\"size\":\"");
-                output += file.size();
-            }
-
-            output += "\",\"name\":\"";
-            output += String(file.name());
-            output += "\"}";
+            if (output != "[") output += ',';
+            output += "{\"type\":\"" + String(file.isDirectory() ? "dir" : "file") + 
+                      "\",\"size\":\"" + String(file.size()) + 
+                      "\",\"name\":\"" + String(file.name()) + "\"}";
             file = root.openNextFile();
         }
     }

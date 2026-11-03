@@ -7,7 +7,7 @@
 extern SdFat sd;
 
 // Декларация внешней функции из MqttClient.cpp для отправки графиков
-bool publishChartFileToMqtt(String path, String id, int maxCount);
+//bool publishChartFileToMqtt(String path, String id, int maxCount);
 void *getAPI_SDDate(String params);
 
 class SDLoging : public IoTItem
@@ -88,7 +88,7 @@ private:
         jsonWriteInt(logData, "x", unixTime, false);
         jsonWriteFloat(logData, "y1", value.toFloat(), false);
 
-        if (!sd.exists("/lg")) sd.mkdir("/lg");
+        if (!sd.exists("/lgsd")) sd.mkdir("/lgsd");
         if (!sd.exists(_logDir.c_str())) sd.mkdir(_logDir.c_str());
 
         String filePath = "";
@@ -145,7 +145,7 @@ public:
         jsonRead(parameters, F("int"), interval);
         setInterval(interval * 60);
 
-        _logDir = "/lg/" + id;
+        _logDir = "/lgsd";
 
         // Создаем дочерний элемент даты
         dateIoTItem = (IoTItem *)getAPI_SDDate("{\"id\": \"" + id + "-date\",\"int\":\"20\",\"subtype\":\"sddate\"}");
@@ -169,9 +169,10 @@ public:
     }
 
     void createNewFileWithData(String &logData)
-    {
+{
         logData = logData + ",";
-        String path = _logDir + "/" + String(unixTime) + ".txt";
+        // Пример: /lgsd/sdlog5_1793717632.txt (чтобы файлы разных датчиков не перезаписывали друг друга в общей папке /lgsd)
+        String path = _logDir + "/" + id + "_" + String(unixTime) + ".txt";
 
         FsFile file = sd.open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC);
         if (!file) {
@@ -186,7 +187,6 @@ public:
         saveDataDB(id, path);
         SerialPrint("i", F("SDLoging"), "'" + id + "' Новый файл дня создан -> " + path);
     }
-
     void addNewDataToExistingFile(String &path, String &logData)
     {
         logData = logData + ",";

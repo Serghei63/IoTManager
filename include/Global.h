@@ -54,6 +54,8 @@
 
 #include <FS.h>
 
+#define SD_ENABLE
+
 // внутренние глобальные директории проекта
 #include "utils/FileUtils.h"
 #include "utils/JsonUtils.h"

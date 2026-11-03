@@ -91,8 +91,8 @@ class SDcard : public IoTItem {
         Serial.printf("[SDcard] Init completed. Card size: %llu MB\n", cardSize);
 
         // Гарантируем наличие базовых папок для логов
-        if (!sd.exists("/lg")) {
-            sd.mkdir("/lg");
+        if (!sd.exists("/lgsd")) {
+            sd.mkdir("/lgsd");
         }
        // if (!sd.exists("/logs")) {
        //      sd.mkdir("/logs");
