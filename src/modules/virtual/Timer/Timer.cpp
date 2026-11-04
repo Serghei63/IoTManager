@@ -27,7 +27,8 @@ class Timer : public IoTItem {
     }
 
     void doByInterval() {
-        if (!_unfin && value.valD >= 0 && !_pause) {
+        //if (!_unfin && value.valD >= 0 && !_pause) {
+        if (!_unfin && value.valD > 0 && !_pause) { // исправлено на >0, чтоб не уходило в отрицательные значения
             if (_repeat && value.valD == 0) value.valD = _initValue;
             value.valD--;
             if (value.valD == 0) {
