@@ -25,12 +25,19 @@ private:
     String _logDir;
 
     // Вспомогательный метод получения unixTime из названия файла
-    unsigned long getFileUnixLocalTime(String path) { 
+      unsigned long getFileUnixLocalTime(String path) { 
         int lastSlash = path.lastIndexOf('/');
         int lastDot = path.lastIndexOf('.');
         
         if (lastSlash != -1 && lastDot != -1 && lastDot > lastSlash) {
             String nameOnly = path.substring(lastSlash + 1, lastDot);
+            
+            // Если в имени есть подчеркивание (например, sdlog5_1793768666), отрезаем всё до него
+            int underscore = nameOnly.lastIndexOf('_');
+            if (underscore != -1) {
+                nameOnly = nameOnly.substring(underscore + 1);
+            }
+            
             return strtoul(nameOnly.c_str(), NULL, 10);
         }
         return 0;
@@ -168,25 +175,24 @@ public:
         processLogging(String(value.valD));
     }
 
-    void createNewFileWithData(String &logData)
-{
-        logData = logData + ",";
-        // Пример: /lgsd/sdlog5_1793717632.txt (чтобы файлы разных датчиков не перезаписывали друг друга в общей папке /lgsd)
-        String path = _logDir + "/" + id + "_" + String(unixTime) + ".txt";
+    void createNewFileWithData(String &logData) {
+    logData = logData + ",";
+    // Собираем путь напрямую из _logDir без повторения имени папки
+    String path = _logDir + "/" + id + "_" + String(unixTime) + ".txt";
 
-        FsFile file = sd.open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC);
-        if (!file) {
-            SerialPrint("E", F("SDLoging"), "'" + id + "' Ошибка создания файла: " + path);
-            return;
-        }
-
-        file.print(logData);
-        file.flush();
-        file.close();
-
-        saveDataDB(id, path);
-        SerialPrint("i", F("SDLoging"), "'" + id + "' Новый файл дня создан -> " + path);
+    FsFile file = sd.open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC);
+    if (!file) {
+        SerialPrint("E", F("SDLoging"), "'" + id + "' Ошибка создания файла: " + path);
+        return;
     }
+
+    file.print(logData);
+    file.flush();
+    file.close();
+
+    saveDataDB(id, path);
+    SerialPrint("i", F("SDLoging"), "'" + id + "' Новый файл дня создан -> " + path);
+}
     void addNewDataToExistingFile(String &path, String &logData)
     {
         logData = logData + ",";
