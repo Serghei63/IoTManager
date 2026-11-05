@@ -14,6 +14,11 @@
 #include <USB.h>
 #endif
 
+#ifdef SD_ENABLE
+#include <SdFat.h>
+SdFat sd; // Создаем реальный глобальный объект здесь
+#endif
+
 IoTScenario iotScen;  // объект управления сценарием
 
 String volStrForSave = "";

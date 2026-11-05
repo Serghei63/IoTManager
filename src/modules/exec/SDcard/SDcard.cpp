@@ -4,7 +4,7 @@
 #include "SdFat.h"                // Работа через библиотеку SdFat
 
 // Инициализируем глобальный объект sd, доступный во всем проекте
-SdFat sd; 
+extern SdFat sd; 
 
 class SDcard;
 extern SDcard* globalSDCardInstance;

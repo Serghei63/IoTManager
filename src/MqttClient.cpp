@@ -1,6 +1,11 @@
 #include "MqttClient.h"
 #include "classes/IoTDiscovery.h"
 
+#ifdef SD_ENABLE
+#include <SdFat.h>
+extern SdFat sd;
+#endif
+
 void mqttInit() {
     mqtt.setCallback(mqttCallback);
     ts.add(
@@ -13,8 +18,6 @@ void mqttInit() {
                     SerialPrint("i", F("MQTT"), "OK");
                     mqttUptimeCalc();
                     handleMqttStatus(false);
-
-                    // setLedStatus(LED_OFF);
                 } else {
                     SerialPrint("E", F("MQTT"), F("✖ Connection lost"));
                     handleMqttStatus(false);
@@ -43,39 +46,28 @@ boolean mqttConnect() {
     bool res = false;
     if (mqttServer == "") {
         SerialPrint("E", "MQTT", F("mqttServer empty"));
-
         handleMqttStatus(true, 6);
-
         return res;
     }
     SerialPrint("i", "MQTT", "connection started");
-
     SerialPrint("i", "MQTT", "broker " + mqttServer + ":" + String(mqttPort, DEC));
     SerialPrint("i", "MQTT", "topic " + mqttRootDevice);
-
-    // setLedStatus(LED_FAST);
 
     mqtt.setServer(mqttServer.c_str(), mqttPort);
 
     if (!mqtt.connected()) {
         bool connected = false;
         if (mqttUser != "" && mqttPass != "") {
-            if (HOMEdDiscovery)
-            {
+            if (HOMEdDiscovery) {
                 connected = mqtt.connect(chipId.c_str(), mqttUser.c_str(), mqttPass.c_str(), (HOMEdDiscovery->HOMEdTopic + "/device/custom/" + nameId).c_str(), 1, true, "{\"status\":\"offline\"}");
-            }
-            else
-            {
+            } else {
                 connected = mqtt.connect(chipId.c_str(), mqttUser.c_str(), mqttPass.c_str(), (mqttRootDevice + "/state").c_str(), 1, true, "{\"status\":\"offline\"}");
             }
             SerialPrint("i", F("MQTT"), F("Go to connection with login and password"));
         } else if (mqttUser == "" && mqttPass == "") {
-            if (HOMEdDiscovery)
-            {
+            if (HOMEdDiscovery) {
                 connected = mqtt.connect(chipId.c_str(), (HOMEdDiscovery->HOMEdTopic + "/device/custom/" + nameId).c_str(), 1, true, "{\"status\":\"offline\"}");
-            }
-            else
-            {
+            } else {
                 connected = mqtt.connect(chipId.c_str(), (mqttRootDevice + "/state").c_str(), 1, true, "{\"status\":\"offline\"}");
             }
             SerialPrint("i", F("MQTT"), F("Go to connection without login and password"));
@@ -88,13 +80,11 @@ boolean mqttConnect() {
         if (mqtt.state() == 0) {
             SerialPrint("i", F("MQTT"), F("✔ connected"));
             handleMqttStatus(true);
-            //   setLedStatus(LED_OFF);
             mqttSubscribe();
             res = true;
         } else {
             SerialPrint("E", F("MQTT"), "🡆 Could't connect, retry in " + String(MQTT_RECONNECT_INTERVAL / 1000) + "s");
             handleMqttStatus(true);
-            //  setLedStatus(LED_FAST);
         }
     }
     return res;
@@ -121,8 +111,10 @@ void getMqttData() {
     mqttPass = jsonReadStr(settingsFlashJson, F("mqttPass"));
     mqttPrefix = jsonReadStr(settingsFlashJson, F("mqttPrefix"));
     if (jsonReadInt(settingsFlashJson, F("HOMEd_names"))){
-    nameId = jsonReadStr(settingsFlashJson, F("name"));}
-    else{nameId = getChipId();}
+        nameId = jsonReadStr(settingsFlashJson, F("name"));
+    } else {
+        nameId = getChipId();
+    }
     mqttRootDevice = mqttPrefix + "/" + chipId;
 }
 
@@ -151,13 +143,10 @@ void mqttSubscribe() {
         HOMEdDiscovery->mqttSubscribeDiscovery();
     if(HADiscovery)
         HADiscovery->mqttSubscribeDiscovery();
-        // оттправляем все статусы
-    if(HOMEdDiscovery || HADiscovery)
-    {
-        for (std::list<IoTItem *>::iterator it = IoTItems.begin(); it != IoTItems.end(); ++it)
-        {
-            if ((*it)->iAmLocal)
-            {
+
+    if(HOMEdDiscovery || HADiscovery) {
+        for (std::list<IoTItem *>::iterator it = IoTItems.begin(); it != IoTItems.end(); ++it) {
+            if ((*it)->iAmLocal) {
                 publishStatusMqtt((*it)->getID(), (*it)->getValue());
                 (*it)->onMqttWsAppConnectEvent();
             }
@@ -166,39 +155,30 @@ void mqttSubscribe() {
 }
 
 void mqttSubscribeExternal(String topic, bool usePrefix) {
-
-    // SerialPrint("i", F("MQTT"), mqttRootDevice);
     String _sb_topic = topic;
-    if (usePrefix)
-    {
+    if (usePrefix) {
         _sb_topic = mqttPrefix + "/" + topic;
     }
     mqtt.subscribe(_sb_topic.c_str());
-
     SerialPrint("i", F("MQTT"), ("subscribed external " + _sb_topic).c_str());
 }
 
 void mqttCallback(char* topic, uint8_t* payload, size_t length) {
     String topicStr = String(topic);
-    // SerialPrint("i", "=>MQTT", topicStr);
     String payloadStr;
     payloadStr.reserve(length + 1);
     for (size_t i = 0; i < length; i++) {
         payloadStr += (char)payload[i];
     }
 
-    // генерация события прихода mqtt сообщения в модуле
     for (std::list<IoTItem*>::iterator it = IoTItems.begin(); it != IoTItems.end(); ++it) {
         (*it)->onMqttRecive(topicStr, payloadStr);
     }
 
     if (payloadStr.startsWith("HELLO")) {
         SerialPrint("i", F("MQTT"), F("Full update"));
-
-        // публикация всех виджетов
         publishWidgets();
 
-        // публикация всех статус сообщений при подключении приложения и генерация события подключения приложения в модулях
         for (std::list<IoTItem*>::iterator it = IoTItems.begin(); it != IoTItems.end(); ++it) {
             if ((*it)->iAmLocal) {
                 publishStatusMqtt((*it)->getID(), (*it)->getValue());
@@ -206,9 +186,7 @@ void mqttCallback(char* topic, uint8_t* payload, size_t length) {
             }
         }
 
-        // отправка данных графиков - данный код будет оптимизирован после завершения написания приложения с новыми графиками
         for (std::list<IoTItem*>::iterator it = IoTItems.begin(); it != IoTItems.end(); ++it) {
-            //if ((*it)->getSubtype() == "Loging" || "LogingDaily") {
             String subtype = (*it)->getSubtype();
             if (subtype == "Loging" || subtype == "LogingDaily" || subtype == "LogingHourly" || subtype == "SDLoging" || subtype == "Lognew2") {
                 (*it)->setPublishDestination(TO_MQTT);
@@ -222,39 +200,24 @@ void mqttCallback(char* topic, uint8_t* payload, size_t length) {
 #ifdef EnableLogging
         choose_log_date_and_send();
 #endif
-    }
-
-    else if (topicStr.indexOf(F("control")) != -1) {
+    } else if (topicStr.indexOf(F("control")) != -1) {
         String key = selectFromMarkerToMarker(topicStr, "/", 3);
-
-        String valueIfJson = "";  // проверяем формат, если json то берем статус, иначе - как есть
+        String valueIfJson = "";
         if (!jsonRead(payloadStr, F("status"), valueIfJson, false))
             generateOrder(key, payloadStr);
         else
             generateOrder(key, valueIfJson);
 
         SerialPrint("i", F("=>MQTT"), "Msg from iotmanager app: " + key + " " + payloadStr);
-    }
-
-    // здесь мы получаем события с других устройств, которые потом проверяются в сценариях этого устройства
-    else if (topicStr.indexOf("event") != -1) {
-        if (!jsonReadBool(settingsFlashJson, "mqttin")) {
-            return;
-        }
+    } else if (topicStr.indexOf("event") != -1) {
+        if (!jsonReadBool(settingsFlashJson, "mqttin")) return;
         if (topicStr.indexOf(chipId) == -1) {
             String devId = selectFromMarkerToMarker(topicStr, "/", 2);
             String id = selectFromMarkerToMarker(topicStr, "/", 3);
             analyzeMsgFromNet(payloadStr, id);
-            // SerialPrint("i", F("=>MQTT"), "Received event from other device: '" + devId + "' " + id + " " + valAsStr);
         }
-    }
-
-    // здесь мы получаем прямые команды которые сразу выполнятся на этом устройстве
-    // необходимо для тех кто хочет управлять своим устройством из mqtt
-    else if (topicStr.indexOf("order") != -1) {
-        if (!jsonReadBool(settingsFlashJson, "mqttin")) {
-            return;
-        }
+    } else if (topicStr.indexOf("order") != -1) {
+        if (!jsonReadBool(settingsFlashJson, "mqttin")) return;
         String devId = selectFromMarkerToMarker(topicStr, "/", 2);
         String id = selectFromMarkerToMarker(topicStr, "/", 3);
         generateOrder(id, payloadStr);
@@ -289,8 +252,7 @@ boolean publishChartMqtt(const String& topic, const String& data) {
 }
 
 boolean publishStatusMqtt(const String& topic, const String& data) {
-    if (HOMEdDiscovery)
-    {
+    if (HOMEdDiscovery) {
         HOMEdDiscovery->publishStatusHOMEd(topic, data);
     }
     String path = mqttRootDevice + "/" + topic + "/status";
@@ -320,7 +282,7 @@ void publishWidgets() {
     DeserializationError error = deserializeJson(doc, file);
     if (error) {
         SerialPrint("E", F("MQTT"), error.f_str());
-        jsonWriteInt(errorsHeapJson, F("jse3"), 1);  // Ошибка чтения json файла с виджетами при отправки в mqtt
+        jsonWriteInt(errorsHeapJson, F("jse3"), 1);
     }
     JsonArray arr = doc.as<JsonArray>();
     for (JsonVariant value : arr) {
@@ -328,42 +290,14 @@ void publishWidgets() {
     }
     file.close();
 }
-/*
-bool publishChartFileToMqtt(String path, String id, int maxCount) {
-    File configFile = FileFS.open(path, FILE_READ);
-    if (!configFile) {
-        SerialPrint("E", F("Loging"), path + " file reading error, json not created, return");
-        return false;
-    }
-    String oneSingleJson = configFile.readString();
-    configFile.close();
-    String topic = mqttRootDevice + "/" + id;
-    oneSingleJson = "{\"maxCount\":" + String(maxCount) + ",\"topic\":\"" + topic + "\",\"status\":[" + oneSingleJson + "]}";
-    oneSingleJson.replace("},]}", "}]}");
-    SerialPrint("i", "Loging", "json size: " + String(oneSingleJson.length()));
-    publishChartMqtt(id, oneSingleJson);
-    return true;
-}
 
-// void handleMqttStatus(bool send) {
-//     String stateStr = getStateStr(mqtt.state());
-//     // Serial.println(stateStr);
-//     jsonWriteStr_(errorsHeapJson, F("mqtt"), stateStr);
-//     if (!send) sendStringToWs("errors", errorsHeapJson, -1);
-// }
-*/
 // ------------------ MQTT & Chart Functions ------------------
 
-#ifdef SD_ENABLE
-  #include <SdFat.h>
-  extern SdFat sd;
-#endif
 bool publishChartFileToMqtt(String path, String id, int maxCount, String seriesArray, String typeChart) {
     String oneSingleJson = "";
     bool fileReadSuccess = false;
 
 #ifdef SD_ENABLE
-    // Чтение с SD-карты
     if (path.startsWith("/lgsd/")) {
         FsFile configFile = sd.open(path.c_str(), O_RDONLY);
         if (configFile) {
@@ -374,15 +308,14 @@ bool publishChartFileToMqtt(String path, String id, int maxCount, String seriesA
             configFile.close();
             fileReadSuccess = true;
         } else {
-            SerialPrint("E", F("SDLoging"), path + " file reading error (SD), json not created, return");
+            SerialPrint("E", F("SDLoging"), path + " file reading error (SD), file not found");
             return false;
         }
     }
 #endif
 
-    // Чтение из LittleFS / SPIFFS
     if (!fileReadSuccess) {
-        File configFile = FileFS.open(path, FILE_READ);
+        File configFile = FileFS.open(path, "r");
         if (!configFile) {
             SerialPrint("E", F("Loging"), path + " file reading error (FS), json not created, return");
             return false;
@@ -396,18 +329,13 @@ bool publishChartFileToMqtt(String path, String id, int maxCount, String seriesA
         return false;
     }
 
-    // Убираем лишнюю запятую в конце, если она осталась после записи точек
     if (oneSingleJson.endsWith(",")) {
         oneSingleJson.remove(oneSingleJson.length() - 1);
     }
 
-    // Формируем топик статуса
     String topic = mqttRootDevice + "/" + id + "/status";
-
-    // Проверяем тип графика: если передали пустую строку, по умолчанию ставим "line"
     String chartTypeVal = (typeChart.length() > 0) ? typeChart : "line";
 
-    // Собираем итоговый JSON
     String json = "{";
     json += "\"maxCount\":" + String(maxCount) + ",";
     json += "\"topic\":\"" + topic + "\",";
@@ -420,68 +348,35 @@ bool publishChartFileToMqtt(String path, String id, int maxCount, String seriesA
 
     json.replace("},]}", "}]}");
 
-    SerialPrint("i", F("Loging"), "Custom chart (" + chartTypeVal + ") json size: " + String(json.length()));
-    
-    // Передаем в штатный отправщик
     publishChartMqtt(id, json);
-
     return true;
 }
 
 void handleMqttStatus(bool send, int state) {
     if (state == -1) {
-            state = mqtt.state();
+        state = mqtt.state();
     }
     String stateStr = getStateStr(state);
-    // Serial.println(stateStr);
     jsonWriteStr_(errorsHeapJson, F("mqtt"), stateStr);
     if (!send) sendStringToWs("errors", errorsHeapJson, -1);
 }
 
 const String getStateStr(int e) {
     switch (e) {
-        case -4:  // Нет ответа от сервера
-        return F("e1");
-        break;
-        case -3:  // Соединение было разорвано
-        return F("e2");
-        break;
-        case -2:  // Ошибка соединения. Обычно возникает когда неверно указано название сервера MQTT
-        return F("e3");
-        break;
-        case -1:  // Клиент был отключен
-        return F("e4");
-        break;
-        case 0:  // подключено
-        return F("e5");
-        break;
-        case 1:  // Ошибка версии
-        return F("e6");
-        break;
-        case 2:  // Отклонен идентификатор
-        return F("e7");
-        break;
-        case 3:  // Не могу установить соединение
-        return F("e8");
-        break;
-        case 4:  // Неправильное имя пользователя/пароль
-        return F("e9");
-        break;
-        case 5:  // Не авторизован для подключения
-        return F("e10");
-        break;
-        case 6:  // Название сервера пустое
-        return F("e11");
-        break;
-        case 7:  // Имя пользователя или пароль пустые
-        return F("e12");
-        break;
-        case 8:  // Подключение в процессе
-        return F("e13");
-        break;
-    default:
-        return F("unk");
-        break;
+        case -4: return F("e1");
+        case -3: return F("e2");
+        case -2: return F("e3");
+        case -1: return F("e4");
+        case 0:  return F("e5");
+        case 1:  return F("e6");
+        case 2:  return F("e7");
+        case 3:  return F("e8");
+        case 4:  return F("e9");
+        case 5:  return F("e10");
+        case 6:  return F("e11");
+        case 7:  return F("e12");
+        case 8:  return F("e13");
+        default: return F("unk");
     }
 }
 

@@ -12,48 +12,15 @@ String unsupportedFiles = String();
 static const char TEXT_PLAIN[] PROGMEM = "text/plain";
 static const char FS_INIT_ERROR[] PROGMEM = "FS INIT ERROR";
 static const char FILE_NOT_FOUND[] PROGMEM = "FileNotFound";
-// static bool fsOK;
-// const char* fsName = "LittleFS";
-// Типы обновлений
+
 enum UpdateType {
     FIRMWARE,
     FILESYSTEM
-  };
-
+};
 
 void standWebServerInit() {
-    //  Кэшировать файлы для быстрой работы
-    // если указана директория то все файлы будут отмечены как Directory Request Handler
-    // если указан файл то он будет отмечен как File Request Handler
-    HTTP.serveStatic("/build", FileFS, "/build", "max-age=31536000");              // кеширование на 1 год
-    HTTP.serveStatic("/favicon.ico", FileFS, "/favicon.ico", "max-age=31536000");  // кеширование на 1 год
-
-    // HTTP.on("/devicelist.json", HTTP_GET, []() {
-    //     HTTP.send(200, "application/json", devListHeapJson);
-    // });
-    // HTTP.on("/settings.h.json", HTTP_GET, []() {
-    //    HTTP.send(200, "application/json", settingsFlashJson);
-    //});
-    // HTTP.on("/settings.f.json", HTTP_GET, []() {
-    //     HTTP.send(200, "application/json", readFile(F("settings.json"), 20000));
-    // });
-    // HTTP.on("/params.json", HTTP_GET, []() {
-    //     String json = getParamsJson();
-    //     HTTP.send(200, "application/json", json);
-    // });
-    // HTTP.on("/errors.json", HTTP_GET, []() {
-    //     HTTP.send(200, "application/json", errorsHeapJson);
-    // });
-    // HTTP.on("/config.json", HTTP_GET, []() {
-    //     HTTP.send(200, "application/json", readFile(F("config.json"), 20000));
-    // });
-    // HTTP.on("/layout.json", HTTP_GET, []() {
-    //     HTTP.send(200, "application/json", readFile(F("layout.json"), 20000));
-    // });
-    // HTTP.on("/restart", HTTP_GET, []() {
-    //     // ESP.restart();
-    //     HTTP.send(200, "text/plain", "ok");
-    // });
+    HTTP.serveStatic("/build", FileFS, "/build", "max-age=31536000");
+    HTTP.serveStatic("/favicon.ico", FileFS, "/favicon.ico", "max-age=31536000");
 
     HTTP.on("/set", HTTP_GET, []() {
         if (HTTP.hasArg(F("routerssid")) && WiFi.getMode() == WIFI_AP) {
@@ -69,55 +36,24 @@ void standWebServerInit() {
         }
     });
 
-    //  Добавляем функцию Update для перезаписи прошивки по WiFi при 1М(256K FileFS) и выше
-    //  httpUpdater.setup(&HTTP);
-
-    //  Запускаем HTTP сервер
     HTTP.begin();
 
-    // HTTP страницы для работы с FFS
-
-    ////////////////////////////////
-    // WEB SERVER INIT
-
-    // Filesystem status
     HTTP.on("/status", HTTP_GET, handleStatus);
-
-    // List directory
     HTTP.on("/list", HTTP_GET, handleFileList);
-
-    // Load editor
     HTTP.on("/edit", HTTP_GET, handleGetEdit);
-
-    // Create file
     HTTP.on("/edit", HTTP_PUT, handleFileCreate);
-
-    // Delete file
     HTTP.on("/edit", HTTP_DELETE, handleFileDelete);
-
-    // Upload file
-    // - first callback is called after the request has ended with all parsed arguments
-    // - second callback handles file upload at that location
     HTTP.on("/edit", HTTP_POST, replyOK, handleFileUpload);
-    // отображение страницы с полем ввода для сервера обновления
     HTTP.on("/localota", HTTP_GET, handleLocalOTA);
-    // непосредственно ОТА обновление со стороннего сервера 
     HTTP.on("/localota_handler", HTTP_GET, handleLocalOTA_Handler);
 
-    // Обработка обновления от WS drag&drop
     HTTP.on("/update", HTTP_POST, []() {
-        HTTP.send(200); // Для CORS
+        HTTP.send(200);
       }, handleUpdateOTA);
     
-      HTTP.on("/update", HTTP_OPTIONS, handleCors);
-
-    // Default handler for all URIs not defined above
-    // Use it to read files from filesystem
+    HTTP.on("/update", HTTP_OPTIONS, handleCors);
     HTTP.onNotFound(handleNotFound);
 }
-
-////////////////////////////////
-// Utils to return HTTP codes, and determine content-type
 
 void replyOK() {
     HTTP.send(200, FPSTR(TEXT_PLAIN), "");
@@ -132,20 +68,14 @@ void replyNotFound(String msg) {
 }
 
 void replyBadRequest(String msg) {
-    //    DBG_OUTPUT_PORT.println(msg);
     HTTP.send(400, FPSTR(TEXT_PLAIN), msg + "\r\n");
 }
 
 void replyServerError(String msg) {
-    //    DBG_OUTPUT_PORT.println(msg);
     HTTP.send(500, FPSTR(TEXT_PLAIN), msg + "\r\n");
 }
 
-/*
-   Return the FS type, status and size info
-*/
 void handleStatus() {
-    //    DBG_OUTPUT_PORT.println("handleStatus");
     String json;
     json.reserve(128);
 
@@ -155,7 +85,6 @@ void handleStatus() {
 
 #ifdef ESP8266
     FSInfo fs_info;
-
     FileFS.info(fs_info);
     json += F("\"true\", \"totalBytes\":\"");
     json += fs_info.totalBytes;
@@ -180,58 +109,50 @@ void handleStatus() {
 
 void handleLocalOTA() {
   String page = "<form action='/localota' method='POST'><label for='server'>Server Address:</label><input type='text' name='server' value='http://192.168.1.2:5500'><input type='submit' value='Update'></form>";
-  HTTP.send(200, "text/html", page);}
-
+  HTTP.send(200, "text/html", page);
+}
 
 void handleCors() {
     HTTP.sendHeader("Access-Control-Allow-Origin", "*");
     HTTP.send(200);
-  }
+}
   
-  void handleUpdateOTA() {
+void handleUpdateOTA() {
     UpdateType typeOTAfile = FIRMWARE;
     HTTPUpload& upload = HTTP.upload();
-    if (upload.filename != "firmware.bin"  && upload.filename != "littlefs.bin")
-    {
+    if (upload.filename != "firmware.bin" && upload.filename != "littlefs.bin") {
         SerialPrint("E", F("OTA"), "Неверное имя файла: " + upload.filename);
         return;
     }
-    if (upload.filename == "firmware.bin")
-    {
+    if (upload.filename == "firmware.bin") {
         typeOTAfile = FIRMWARE;
-    } else     if (upload.filename == "littlefs.bin")
-    {
+    } else if (upload.filename == "littlefs.bin") {
         typeOTAfile = FILESYSTEM;
     }
     #ifdef ESP8266
     size_t size = upload.totalSize;
-    int updatePartition = (typeOTAfile == FIRMWARE)? U_FLASH : U_FS; //U_FS
-    //#endif
+    int updatePartition = (typeOTAfile == FIRMWARE)? U_FLASH : U_FS;
     #else //ESP32
     size_t size = UPDATE_SIZE_UNKNOWN;
-    int updatePartition = (typeOTAfile == FIRMWARE)? U_FLASH : U_SPIFFS; //U_FS
+    int updatePartition = (typeOTAfile == FIRMWARE)? U_FLASH : U_SPIFFS;
     #endif
     if (upload.status == UPLOAD_FILE_START) {
-      //Serial.print("Начало загрузки: ");
-      //Serial.println(upload.filename);
       SerialPrint("i", F("OTA"), "Начало загрузки файла: " + upload.filename);
-      if (!Update.begin(size, updatePartition)) { // UPDATE_SIZE_UNKNOWN 0xFFFFFFFF
+      if (!Update.begin(size, updatePartition)) {
         Update.end();
         SerialPrint("E", F("OTA"), "Ошибка: Недостаточно памяти");
         HTTP.send(500, "text/plain", "Ошибка: Недостаточно памяти");
         return;
       }
-    }
-    else if (upload.status == UPLOAD_FILE_WRITE) {
+    } else if (upload.status == UPLOAD_FILE_WRITE) {
       if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
         Update.end();
         SerialPrint("E", F("OTA"), "Ошибка записи данных");
         HTTP.send(500, "text/plain", "Ошибка записи данных");
         return;
       }
-    }
-    else if (upload.status == UPLOAD_FILE_END) {
-      if (Update.end(true)) { // true - перезагрузка после обновления
+    } else if (upload.status == UPLOAD_FILE_END) {
+      if (Update.end(true)) {
         SerialPrint("i", F("OTA"), "Обновление завершено");
         HTTP.send(200, "text/plain", "Обновление успешно");
         ESP.restart();
@@ -241,19 +162,18 @@ void handleCors() {
         HTTP.send(500, "text/plain", "Ошибка завершения обновления");
       }
     }
-  }
+}
+
 void handleLocalOTA_Handler() {
     String serverValue = HTTP.arg("server");
-    upgrade_firmware(3,serverValue);
+    upgrade_firmware(3, serverValue);
 }
 
 #ifdef ESP32
 String getContentType(String filename) {
     if (HTTP.hasArg("download")) {
         return "application/octet-stream";
-    } else if (filename.endsWith(".htm")) {
-        return "text/html";
-    } else if (filename.endsWith(".html")) {
+    } else if (filename.endsWith(".htm") || filename.endsWith(".html")) {
         return "text/html";
     } else if (filename.endsWith(".css")) {
         return "text/css";
@@ -280,39 +200,37 @@ String getContentType(String filename) {
 }
 #endif
 
-/*
-   Read the given file from the filesystem and stream it back to the client
-*/
-
-
 bool handleFileRead(String path) {
     if (path.endsWith("/")) {
         path += "index.html";
     }
 
-    // --- Единый блок обработки SD-карты для путей /lgsd/ ---
 #ifdef SD_ENABLE
-if (path.startsWith("lgsd/")) {
-    if (sd.exists(path.c_str())) {
-        FsFile file = sd.open(path.c_str(), O_RDONLY);
-        if (file) {
-            HTTP.sendHeader("Content-Type", "text/plain");
-            HTTP.sendHeader("Content-Length", String(file.fileSize()));
-            HTTP.send(200); // Отправляем заголовки и статус 200, не закрывая соединение
-            
-            uint8_t buffer[512];
-            while (file.available()) {
-                int bytesRead = file.read(buffer, sizeof(buffer));
-                HTTP.client().write(buffer, bytesRead);
-            }
-            file.close();
-            return true;
-        }
+    String sdPath = path;
+    if (sdPath.startsWith("/")) {
+        sdPath.remove(0, 1);
     }
-    return false;
-}
+
+    if (sdPath.startsWith("lgsd/")) {
+        if (sd.exists(sdPath.c_str())) {
+            FsFile file = sd.open(sdPath.c_str(), O_RDONLY);
+            if (file) {
+                HTTP.sendHeader("Content-Type", "text/plain");
+                HTTP.sendHeader("Content-Length", String(file.fileSize()));
+                HTTP.send(200);
+                
+                uint8_t buffer[512];
+                while (file.available()) {
+                    int bytesRead = file.read(buffer, sizeof(buffer));
+                    HTTP.client().write(buffer, bytesRead);
+                }
+                file.close();
+                return true;
+            }
+        }
+        return false;
+    }
 #endif
-    // ----------------------------------------------------
 
     String contentType;
     if (HTTP.hasArg("download")) {
@@ -327,13 +245,12 @@ if (path.startsWith("lgsd/")) {
     }
 
     if (!FileFS.exists(path)) {
-        // File not found, try gzip version
         path = path + ".gz";
     }
     if (FileFS.exists(path)) {
         File file = FileFS.open(path, "r");
         if (HTTP.streamFile(file, contentType) != file.size()) {
-            // Sent less data than expected!
+            // Sent less data than expected
         }
         file.close();
         return true;
@@ -341,47 +258,35 @@ if (path.startsWith("lgsd/")) {
 
     return false;
 }
-/*
-   As some FS (e.g. LittleFS) delete the parent folder when the last child has been removed,
-   return the path of the closest parent still existing
-*/
+
 String lastExistingParent(String path) {
- #ifndef LIBRETINY      
+#ifndef LIBRETINY      
     while (!path.isEmpty() && !FileFS.exists(path)) 
- #else
-     while (!path.length()==0 && !FileFS.exists(path)) 
- #endif      
+#else
+    while (path.length() != 0 && !FileFS.exists(path)) 
+#endif      
     {
         if (path.lastIndexOf('/') > 0) {
             path = path.substring(0, path.lastIndexOf('/'));
         } else {
-            path = String();  // No slash => the top folder does not exist
+            path = String();
         }
     }
-    //    DBG_OUTPUT_PORT.println(String("Last existing parent: ") + path);
     return path;
 }
 
-/*
-   Handle a file upload request
-*/
 void handleFileUpload() {
-    if (HTTP.uri() != "/edit") {
-        return;
-    }
+    if (HTTP.uri() != "/edit") return;
     HTTPUpload &upload = HTTP.upload();
     if (upload.status == UPLOAD_FILE_START) {
         String filename = upload.filename;
-        // Make sure paths always start with "/"
         if (!filename.startsWith("/")) {
             filename = "/" + filename;
         }
-        //        DBG_OUTPUT_PORT.println(String("handleFileUpload Name: ") + filename);
         uploadFile = FileFS.open(filename, "w");
         if (!uploadFile) {
             return replyServerError(F("CREATE FAILED"));
         }
-        //        DBG_OUTPUT_PORT.println(String("Upload: START, filename: ") + filename);
     } else if (upload.status == UPLOAD_FILE_WRITE) {
         if (uploadFile) {
             size_t bytesWritten = uploadFile.write(upload.buf, upload.currentSize);
@@ -389,12 +294,10 @@ void handleFileUpload() {
                 return replyServerError(F("WRITE FAILED"));
             }
         }
-        //        DBG_OUTPUT_PORT.println(String("Upload: WRITE, Bytes: ") + upload.currentSize);
     } else if (upload.status == UPLOAD_FILE_END) {
         if (uploadFile) {
             uploadFile.close();
         }
-        //        DBG_OUTPUT_PORT.println(String("Upload: END, Size: ") + upload.totalSize);
     }
 }
 
@@ -404,7 +307,6 @@ void deleteRecursive(String path) {
     bool isDir = file.isDirectory();
     file.close();
 
-    // If it's a plain file, delete it
     if (!isDir) {
         FileFS.remove(path);
         return;
@@ -413,8 +315,6 @@ void deleteRecursive(String path) {
     while (dir.next()) {
         deleteRecursive(path + '/' + dir.fileName());
     }
-
-    // Then delete the folder itself
     FileFS.rmdir(path);
 }
 #endif
@@ -429,16 +329,12 @@ void deleteRecursive(String path) {
     fs::File dir = FileFS.open(path.c_str());
 
     if (!dir.isDirectory()) {
-        Serial.printf("%s is a file\n", path);
         dir.close();
-        Serial.printf("result of removing file %s: %d\n", path, FileFS.remove(path));
+        FileFS.remove(path);
         return;
     }
 
-    Serial.printf("%s is a directory\n", path);
-
-    fs::File entry, nextentry;
-
+    fs::File entry;
     while (entry = dir.openNextFile()) {
         if (entry.isDirectory()) {
 #if defined ESP32
@@ -447,94 +343,59 @@ void deleteRecursive(String path) {
             deleteRecursive(entry.fullName());
 #endif
         } else {
-            String tmpname = path + "/" + strdup(entry.name());  // buffer file name
+            String tmpname = path + "/" + strdup(entry.name());
             entry.close();
-            Serial.printf("result of removing file %s: %d\n", tmpname, FileFS.remove(tmpname));
+            FileFS.remove(tmpname);
         }
     }
-
     dir.close();
-    Serial.printf("result of removing directory %s: %d\n", path, FileFS.rmdir(path));
+    FileFS.rmdir(path);
 }
 #endif
-/*
-   Handle a file deletion request
-   Operation      | req.responseText
-   ---------------+--------------------------------------------------------------
-   Delete file    | parent of deleted file, or remaining ancestor
-   Delete folder  | parent of deleted folder, or remaining ancestor
-*/
+
 void handleFileDelete() {
     String path = HTTP.arg(0);
-    #ifndef LIBRETINY
-    if (path.isEmpty() || path == "/") {
-        return replyBadRequest("BAD PATH");
-    }
-    #else
-    if (path.length()==0 || path == "/") {
-        return replyBadRequest("BAD PATH");
-    }
-    #endif
-    //    DBG_OUTPUT_PORT.println(String("handleFileDelete: ") + path);
+#ifndef LIBRETINY
+    if (path.isEmpty() || path == "/") return replyBadRequest("BAD PATH");
+#else
+    if (path.length() == 0 || path == "/") return replyBadRequest("BAD PATH");
+#endif
     if (!FileFS.exists(path)) {
         return replyNotFound(FPSTR(FILE_NOT_FOUND));
     }
     deleteRecursive(path);
-
     replyOKWithMsg(lastExistingParent(path));
 }
 
-/*
-   Handle the creation/rename of a new file
-   Operation      | req.responseText
-   ---------------+--------------------------------------------------------------
-   Create file    | parent of created file
-   Create folder  | parent of created folder
-   Rename file    | parent of source file
-   Move file      | parent of source file, or remaining ancestor
-   Rename folder  | parent of source folder
-   Move folder    | parent of source folder, or remaining ancestor
-*/
 void handleFileCreate() {
     String path = HTTP.arg("path");
-    #ifndef LIBRETINY
-    if (path.isEmpty()) {
-        return replyBadRequest(F("PATH ARG MISSING"));
-    }
-    #else
-    if (path.length()==0) {
-        return replyBadRequest(F("PATH ARG MISSING"));
-    }
-    #endif
+#ifndef LIBRETINY
+    if (path.isEmpty()) return replyBadRequest(F("PATH ARG MISSING"));
+#else
+    if (path.length() == 0) return replyBadRequest(F("PATH ARG MISSING"));
+#endif
+
 #ifdef USE_SPIFFS
     if (checkForUnsupportedPath(path).length() > 0) {
         return replyServerError(F("INVALID FILENAME"));
     }
 #endif
 
-    if (path == "/") {
-        return replyBadRequest("BAD PATH");
-    }
-    if (FileFS.exists(path)) {
-        return replyBadRequest(F("PATH FILE EXISTS"));
-    }
+    if (path == "/") return replyBadRequest("BAD PATH");
+    if (FileFS.exists(path)) return replyBadRequest(F("PATH FILE EXISTS"));
 
     String src = HTTP.arg("src");
-    #ifndef LIBRETINY
+#ifndef LIBRETINY
     if (src.isEmpty()) {
-    #else
-    if (src.length()==0) {
-    #endif    
-        // No source specified: creation
-        //        DBG_OUTPUT_PORT.println(String("handleFileCreate: ") + path);
+#else
+    if (src.length() == 0) {
+#endif    
         if (path.endsWith("/")) {
-            // Create a folder
             path.remove(path.length() - 1);
             if (!FileFS.mkdir(path)) {
                 return replyServerError(F("MKDIR FAILED"));
             }
         } else {
-            // Create a file
             File file = FileFS.open(path, "w");
             if (file) {
 #ifdef ESP8266
@@ -556,22 +417,11 @@ void handleFileCreate() {
         }
         replyOKWithMsg(path);
     } else {
-        // Source specified: rename
-        if (src == "/") {
-            return replyBadRequest("BAD SRC");
-        }
-        if (!FileFS.exists(src)) {
-            return replyBadRequest(F("SRC FILE NOT FOUND"));
-        }
+        if (src == "/") return replyBadRequest("BAD SRC");
+        if (!FileFS.exists(src)) return replyBadRequest(F("SRC FILE NOT FOUND"));
 
-        //        DBG_OUTPUT_PORT.println(String("handleFileCreate: ") + path + " from " + src);
-
-        if (path.endsWith("/")) {
-            path.remove(path.length() - 1);
-        }
-        if (src.endsWith("/")) {
-            src.remove(src.length() - 1);
-        }
+        if (path.endsWith("/")) path.remove(path.length() - 1);
+        if (src.endsWith("/")) src.remove(src.length() - 1);
         if (!FileFS.rename(src, path)) {
             return replyServerError(F("RENAME FAILED"));
         }
@@ -579,45 +429,29 @@ void handleFileCreate() {
     }
 }
 
-/*
-   Return the list of files in the directory specified by the "dir" query string parameter.
-   Also demonstrates the use of chunked responses.
-*/
 #ifdef ESP8266
 void handleFileList() {
-    if (!HTTP.hasArg("dir")) {
-        return replyBadRequest(F("DIR ARG MISSING"));
-    }
+    if (!HTTP.hasArg("dir")) return replyBadRequest(F("DIR ARG MISSING"));
 
     String path = HTTP.arg("dir");
-    if (path != "/" && !FileFS.exists(path)) {
-        return replyBadRequest("BAD PATH");
-    }
+    if (path != "/" && !FileFS.exists(path)) return replyBadRequest("BAD PATH");
 
-    //    DBG_OUTPUT_PORT.println(String("handleFileList: ") + path);
     Dir dir = FileFS.openDir(path);
     path.clear();
 
-    // use HTTP/1.1 Chunked response to avoid building a huge temporary string
     if (!HTTP.chunkedResponseModeStart(200, "text/json")) {
         HTTP.send(505, F("text/html"), F("HTTP1.1 required"));
         return;
     }
 
-    // use the same string for every line
     String output;
     output.reserve(64);
     while (dir.next()) {
 #ifdef USE_SPIFFS
         String error = checkForUnsupportedPath(dir.fileName());
-        if (error.length() > 0) {
-            //            DBG_OUTPUT_PORT.println(String("Ignoring ") + error + dir.fileName());
-            continue;
-        }
+        if (error.length() > 0) continue;
 #endif
         if (output.length()) {
-            // send string from previous iteration
-            // as an HTTP chunk
             HTTP.sendContent(output);
             output = ',';
         } else {
@@ -633,17 +467,14 @@ void handleFileList() {
         }
 
         output += F("\",\"name\":\"");
-        // Always return names without leading "/"
         if (dir.fileName()[0] == '/') {
             output += &(dir.fileName()[1]);
         } else {
             output += dir.fileName();
         }
-
         output += "\"}";
     }
 
-    // send last string
     output += "]";
     HTTP.sendContent(output);
     HTTP.chunkedResponseFinalize();
@@ -659,7 +490,6 @@ void handleFileList() {
 
     String path = HTTP.arg("dir");
     
-    // 1. Если запрашивают корень "/", выводим файлы LittleFS + добавляем виртуальную папку /lgsd для SD-карты
     if (path == "/") {
         File root = FileFS.open(path);
         String output = "[";
@@ -673,19 +503,17 @@ void handleFileList() {
                 file = root.openNextFile();
             }
         }
-        // Добавляем папку /lgsd в корень веб-интерфейса
-        #ifdef SD_ENABLE
+#ifdef SD_ENABLE
         if (sd.exists("/")) {
             if (output != "[") output += ',';
             output += "{\"type\":\"dir\",\"size\":\"0\",\"name\":\"lgsd\"}";
         }
-        #endif
+#endif
         output += "]";
         HTTP.send(200, "text/json", output);
         return;
     }
 
-    // 2. Если запрашивают содержимое папки /lgsd или вложенных папок на SD-карте
 #ifdef SD_ENABLE
     if (path.startsWith("/lgsd")) {
         FsFile dir = sd.open(path.c_str());
@@ -699,12 +527,10 @@ void handleFileList() {
                 if (itemName != "" && itemName != "." && itemName != "..") {
                     if (output != "[") output += ',';
                     
-                    // Формируем чистый путь для веб-интерфейса
                     String relativePath = path;
                     if (!relativePath.endsWith("/")) relativePath += "/";
                     relativePath += itemName;
                     
-                    // Имя элемента для вывода (убираем ведущий слеш, если есть)
                     String displayName = relativePath;
                     if (displayName.startsWith("/")) displayName.remove(0, 1);
 
@@ -722,7 +548,6 @@ void handleFileList() {
     }
 #endif
 
-    // 3. Стандартная обработка остальных папок LittleFS/SPIFFS
     if (path != "/" && !FileFS.exists(path)) {
         return replyBadRequest("BAD PATH");
     }
@@ -753,7 +578,7 @@ void handleFileList() {
     if (path != "/" && !FileFS.exists(path)) {
         return replyBadRequest("BAD PATH");
     }
-FileFS.open(path.c_str());
+    FileFS.open(path.c_str());
     lfs_dir_t dir;
     struct lfs_info info;
     int err = lfs_dir_open(FileFS.getFS(), &dir, path.c_str());
@@ -766,20 +591,14 @@ FileFS.open(path.c_str());
         int res = lfs_dir_read(FileFS.getFS(), &dir, &info);
         if (res < 0) {
             lfs_dir_close(FileFS.getFS(), &dir);
-            return ;
+            return;
         }
         
-        if (!res) {
-            break;
-        }
+        if (!res) break;
         
-        Serial.printf("%s %d", info.name, info.type);
+        if (output != "[") output += ',';
 
-        if (output != "[") {
-            output += ',';
-        }
-            output += "{\"type\":\"";
-            //         output += (file.isDirectory()) ? "dir" : "file";
+        output += "{\"type\":\"";
         if (info.type == LFS_TYPE_DIR) {
             output += "dir";
         } else {
@@ -790,8 +609,6 @@ FileFS.open(path.c_str());
         output += "\",\"name\":\"";
         output += String(info.name);
         output += "\"}";
-        //file = root.openNextFile();
-
     }
 
     err = lfs_dir_close(FileFS.getFS(), &dir);
@@ -804,26 +621,21 @@ FileFS.open(path.c_str());
     HTTP.send(200, "text/json", output);
 }
 #endif
-/*
-   The "Not Found" handler catches all URI not explicitly declared in code
-   First try to find and return the requested file from the filesystem,
-   and if it fails, return a 404 page with debug information
-*/
+
 void handleNotFound() {
 #ifdef ESP8266
-    String uri = ESP8266WebServer::urlDecode(HTTP.uri());  // required to read paths with blanks
+    String uri = ESP8266WebServer::urlDecode(HTTP.uri());
 #endif
 #ifdef ESP32
-    String uri = WebServer::urlDecode(HTTP.uri());  // required to read paths with blanks
+    String uri = WebServer::urlDecode(HTTP.uri());
 #endif
 #ifdef LIBRETINY
-    String uri = WebServer::urlDecode(HTTP.uri());  // required to read paths with blanks
+    String uri = WebServer::urlDecode(HTTP.uri());
 #endif
     if (handleFileRead(uri)) {
         return;
     }
 
-    // Dump debug data
     String message;
     message.reserve(100);
     message = F("Error: File not found\n\nURI: ");
@@ -843,17 +655,10 @@ void handleNotFound() {
     message += "path=";
     message += HTTP.arg("path");
     message += '\n';
-    //    DBG_OUTPUT_PORT.print(message);
 
     return replyNotFound(message);
 }
 
-/*
-   This specific handler returns the index.htm (or a gzipped version) from the /edit folder.
-   If the file is not present but the flag INCLUDE_FALLBACK_INDEX_HTM has been set, falls back to the version
-   embedded in the program code.
-   Otherwise, fails with a 404 page with debug information
-*/
 void handleGetEdit() {
     if (handleFileRead(F("/edit.htm"))) {
         return;
