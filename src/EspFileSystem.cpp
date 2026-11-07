@@ -149,7 +149,8 @@ uint32_t getFlashChipIdNew()
 const String getMacAddress()
 {
     uint8_t mac[6];
-    char buf[13] = { 0 };
+    //char buf[13] = { 0 };
+    char buf[18] = { 0 };
 #if defined(ESP8266)
     WiFi.macAddress(mac);
     sprintf(buf, MACSTR, MAC2STR(mac));  
