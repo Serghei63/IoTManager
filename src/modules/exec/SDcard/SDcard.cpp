@@ -81,7 +81,7 @@ class SDcard : public IoTItem {
             if (importFileToLittleFS("/config.json")) {
                 Serial.println("[SDcard] Config updated from SD card!");
                 // При необходимости можно сразу вызвать перезагрузку: 
-                ESP.restart();
+               // ESP.restart();
             }
         }
 
@@ -94,9 +94,9 @@ class SDcard : public IoTItem {
         if (!sd.exists("/lg")) {
             sd.mkdir("/lg");
         }
-        if (!sd.exists("/logs")) {
-            sd.mkdir("/logs");
-        }
+         //if (!sd.exists("/logs")) {
+         //   sd.mkdir("/logs");
+         //}
     }
 
     // Метод проверки готовности карты для внешних модулей (например, логера)
