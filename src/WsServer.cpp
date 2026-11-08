@@ -2,15 +2,12 @@
 #include "classes/IoTScenario.h"
 extern IoTScenario iotScen;
 
-// Track authenticated clients
+// авторизация веб-интерфейса, см. StandWebServer.cpp
 extern String settingsFlashJson;
 extern bool wsClientAuthenticated[WEBSOCKETS_CLIENT_MAX];
-
-// Session management for WebSocket authentication
-#define SESSION_TIMEOUT 60  // 1 hour in seconds
-
-// External session management functions and variables
-extern bool isValidSession(String sessionId);
+extern bool webAuthEnabled();
+extern bool webCredsMatch(const String& user, const String& pass);
+extern bool authTokenValid(const String& token);
 
 #ifdef STANDARD_WEB_SOCKETS
 void standWebSocketsInit() {
@@ -21,6 +18,12 @@ void standWebSocketsInit() {
     {
         ws_clients[i] = -1;
     }
+}
+
+// клиенту разрешены защищённые команды: пароль не задан, либо это соединение прошло /auth|
+static bool wsClientAllowed(uint8_t num) {
+    if (!webAuthEnabled()) return true;
+    return num < WEBSOCKETS_CLIENT_MAX && wsClientAuthenticated[num];
 }
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
@@ -37,28 +40,8 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
             }
             standWebSocket.disconnect(num);
         } break;
-/*
+
         case WStype_CONNECTED: {
-            // IPAddress ip = standWebSocket.remoteIP(num);
-            SerialPrint("i", "WS " + String(num), "WS client connected");
-            
-            // Reset authentication status for this client
-            if (num < WEBSOCKETS_CLIENT_MAX) {
-                wsClientAuthenticated[num] = false;
-            }
-            
-            if (num >= 3) {
-                SerialPrint("E", "WS", "Too many clients, connection closed!!!");
-                jsonWriteInt(errorsHeapJson, "wse1", 1);
-                standWebSocket.close();
-                standWebSocketsInit();
-            }
-            // Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0],
-            // ip[1], ip[2], ip[3], payload); standWebSocket.sendTXT(num,
-            // "Connected");
-        } break;
-*/
-case WStype_CONNECTED: {
             SerialPrint("i", "WS " + String(num), "WS client connected");
             
             // 1. Сразу легализуем клиента для таски в main.cpp
@@ -79,6 +62,7 @@ case WStype_CONNECTED: {
                 }
             }
         } break;
+
         case WStype_TEXT: {
             bool endOfHeaderFound = false;
             size_t maxAllowedHeaderSize = 15;  // максимальное количество символов заголовка
@@ -101,16 +85,16 @@ case WStype_CONNECTED: {
             // Страница веб интерфейса dashboard
             //----------------------------------------------------------------------//
             
-            // Authentication check - require authentication for all WebSocket commands except ping
-            if (headerStr != "/pi|" && num < WEBSOCKETS_CLIENT_MAX && !wsClientAuthenticated[num]) {
-                // Check if authentication is required
-                String authUsername = "";
-                String authPassword = "";
-                jsonRead(settingsFlashJson, "weblogin", authUsername);
-                jsonRead(settingsFlashJson, "webpass", authPassword);
-                
+            // Команды раздела "Управление" доступны без пароля, все остальные - только после входа
+            bool openCmd = headerStr == "/pi|" || headerStr == "/tst|" || headerStr == "/|" ||
+                           headerStr == "/params|" || headerStr == "/charts|" || headerStr == "/control|" ||
+                           headerStr == "/devlist|" || headerStr == "/auth|";
+            if (!openCmd && !wsClientAllowed(num)) {
+                standWebSocket.sendTXT(num, "/authreq|");
+                SerialPrint("E", "WS " + String(num), "Access denied: " + headerStr);
+                break;
             }
-            
+
             if (headerStr == "/pi|") {
                 standWebSocket.sendTXT(num, "/po|");
                 Serial.printf("Ping client: %u\n", num);
@@ -414,34 +398,24 @@ case WStype_CONNECTED: {
                 }
             }
             
-            // Authentication command - used to authenticate WebSocket connection
+            // Вход для WebSocket соединения: /auth|токен (токен выдаёт HTTP /login) или /auth|логин:пароль
             else if (headerStr == "/auth|") {
                 String credentials;
                 writeUint8tToString(payload, length, headerLenth, credentials);
-                
-                // Parse credentials (format: username:password)
+                bool ok = false;
                 int colonIndex = credentials.indexOf(':');
                 if (colonIndex != -1) {
-                    String username = credentials.substring(0, colonIndex);
-                    String password = credentials.substring(colonIndex + 1);
-                    
-                    // Check against settings
-                    String authUsername = "";
-                    String authPassword = "";
-                    jsonRead(settingsFlashJson, "weblogin", authUsername);
-                    jsonRead(settingsFlashJson, "webpass", authPassword);
-                    
-                    if (username == authUsername && password == authPassword && num < WEBSOCKETS_CLIENT_MAX) {
-                        wsClientAuthenticated[num] = true;
-                        standWebSocket.sendTXT(num, "/authok|");
-                        SerialPrint("i", "WS " + String(num), "WebSocket client authenticated");
-                    } else {
-                        standWebSocket.sendTXT(num, "/authfail|");
-                        SerialPrint("E", "WS " + String(num), "WebSocket authentication failed");
-                    }
+                    ok = webCredsMatch(credentials.substring(0, colonIndex), credentials.substring(colonIndex + 1));
+                } else {
+                    ok = authTokenValid(credentials);
+                }
+                if (ok && num < WEBSOCKETS_CLIENT_MAX) {
+                    wsClientAuthenticated[num] = true;
+                    standWebSocket.sendTXT(num, "/authok|");
+                    SerialPrint("i", "WS " + String(num), "WebSocket client authenticated");
                 } else {
                     standWebSocket.sendTXT(num, "/authfail|");
-                    SerialPrint("E", "WS " + String(num), "Invalid authentication format");
+                    SerialPrint("E", "WS " + String(num), "WebSocket authentication failed");
                 }
             }
 
