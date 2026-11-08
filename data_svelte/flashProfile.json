@@ -416,7 +416,7 @@
             },
             {
                 "path": "src/modules/exec/Mcp23017",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/exec/Mfrc522",
@@ -448,7 +448,7 @@
             },
             {
                 "path": "src/modules/exec/Pwm32",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/exec/Pwm8266",
@@ -488,11 +488,11 @@
             },
             {
                 "path": "src/modules/exec/TelegramLT",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/exec/Telegram_v2",
-                "active": false
+                "active": true
             },
             {
                 "path": "src/modules/exec/Thermostat",
