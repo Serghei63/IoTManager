@@ -126,26 +126,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
                 }
             }
 
-            /*
-
-            else if (headerStr == "/params|") {
-                // публикация всех статус сообщений при подключении svelte приложения
-                String params = "{}";
-                for (std::list<IoTItem*>::iterator it = IoTItems.begin(); it != IoTItems.end(); ++it) {
-                    if ((*it)->getSubtype() != "Loging") {
-                        if ((*it)->getSubtype() != "LogingDaily") {
-                            if ((*it)->iAmLocal) jsonWriteStr(params, (*it)->getID(), (*it)->getValue());
-                        }
-                    }
-                }
-                sendStringToWs("params", params, num);
-
-                // генерация события подключения в модулях
-                for (std::list<IoTItem*>::iterator it = IoTItems.begin(); it != IoTItems.end(); ++it) {
-                    if ((*it)->iAmLocal) (*it)->onMqttWsAppConnectEvent();
-                }
-            }
-            */
 
             // отвечаем на запрос графиков
             else if (headerStr == "/charts|") {
