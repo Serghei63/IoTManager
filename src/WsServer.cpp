@@ -126,7 +126,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
                 }
             }
 
-
             // отвечаем на запрос графиков
             else if (headerStr == "/charts|") {
                 // обращение к логированию из ядра
