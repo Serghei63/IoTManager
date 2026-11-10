@@ -29,8 +29,7 @@ enum UpdateType {
 // Если weblogin или webpass пустые - пароль не требуется нигде.
 // ---------------------------------------------------------------------------
 #define AUTH_TOKENS_MAX 4
-//#define AUTH_TOKEN_TTL_MS 3600000UL  // токен действует 1 час
-#define AUTH_TOKEN_TTL_MS 60000UL  // токен действует 1 минуту
+#define AUTH_TOKEN_TTL_MS 3600000UL  // токен действует 1 час
 
 // одноразовый вход: /login (HTTP, браузер сам спрашивает пароль) выдаёт токен,
 // страница отправляет его по WebSocket командой /auth|токен, и именно это соединение становится авторизованным
@@ -207,19 +206,6 @@ void standWebServerInit() {
             HTTP.send(200, "text/plain", "OK");
         }
     });
-
-    // Мгновенный гаситель Preflight OPTIONS и мёртвого /email
-HTTP.on("/email", HTTP_ANY, []() {
-    HTTP.sendHeader("Access-Control-Allow-Origin", "*");
-    HTTP.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    HTTP.sendHeader("Access-Control-Allow-Headers", "*");
-    
-    if (HTTP.method() == HTTP_OPTIONS) {
-        HTTP.send(204); // Мгновенный отклик для браузера
-    } else {
-        HTTP.send(200, "application/json", "{\"status\":\"disabled\"}");
-    }
-});
 
     HTTP.on("/set", HTTP_GET, []() {
         if (!requireAuth()) return;
@@ -1033,3 +1019,4 @@ void handleGetEdit() {
 }
 
 #endif
+
