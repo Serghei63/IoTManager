@@ -1,7 +1,7 @@
 {
     "projectProp": {
         "platformio": {
-            "default_envs": "esp32s3_n16r8"
+            "default_envs": "esp32s3_4848S040"
         }
     },
     "modules": {
@@ -488,11 +488,11 @@
             },
             {
                 "path": "src/modules/exec/TelegramLT",
-                "active": false
+                "active": true
             },
             {
                 "path": "src/modules/exec/Telegram_v2",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/exec/Thermostat",
@@ -558,7 +558,7 @@
             },
             {
                 "path": "src/modules/display/Panel",
-                "active": false
+                "active": true
             },
             {
                 "path": "src/modules/display/Smi2_m",

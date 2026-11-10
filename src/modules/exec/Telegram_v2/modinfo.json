@@ -130,6 +130,9 @@
         "esp32*": [
             "gyverlibs/FastBot"
         ],
+        "esp32s3_4848S040": [
+            "gyverlibs/FastBot"
+        ],
         "esp8266_4mb": [
             "gyverlibs/FastBot"
         ]
