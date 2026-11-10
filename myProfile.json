@@ -182,7 +182,7 @@
             },
             {
                 "path": "src/modules/virtual/Loging",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/virtual/Loging2",
@@ -194,11 +194,11 @@
             },
             {
                 "path": "src/modules/virtual/LogingDaily",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/virtual/LogingHourly",
-                "active": true
+                "active": false
             },
             {
                 "path": "src/modules/virtual/Lognew2",
@@ -602,7 +602,7 @@
             },
             {
                 "path": "src/modules/exec/Pwm32",
-                "active": false
+                "active": true
             },
             {
                 "path": "src/modules/exec/Pwm8266",
@@ -708,6 +708,10 @@
             },
             {
                 "path": "src/modules/display/Oled64",
+                "active": false
+            },
+            {
+                "path": "src/modules/display/Panel",
                 "active": false
             },
             {
