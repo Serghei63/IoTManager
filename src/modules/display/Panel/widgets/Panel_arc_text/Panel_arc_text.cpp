@@ -1,7 +1,7 @@
 #include "Panel_arc_text.h"
 #include "classes/IoTItem.h"
 
-//extern "C" const lv_font_t serg45;
+extern "C" const lv_font_t serg45;
 
 std::vector<lv_obj_t*> ui_Arc_text(0, NULL);
 
@@ -73,7 +73,7 @@ void Panel_arc_text::drawTextOnArc(lv_obj_t* parent,
         lv_obj_set_style_text_opa(label, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
         if (shr == 45) {
-           // lv_obj_set_style_text_font(label, &serg45, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_text_font(label, &serg45, LV_PART_MAIN | LV_STATE_DEFAULT);
         } else {
             lv_obj_set_style_text_font(label, (lv_font_t*)font, LV_PART_MAIN | LV_STATE_DEFAULT);
         }

@@ -206,7 +206,7 @@ void conshrift(lv_font_t &shri, int &sh) {
     if (sh == 20) { shri = serg20; }
     else if (sh == 40) { shri = serg40; }
     else if (sh == 43) { shri = serg43; }
-   // else if (sh == 45) { shri = serg45; }
+  
     else if (sh == 60) { shri = serg60; }
     else if (sh == 80) { shri = serg80; }
     else if (sh == 100) { shri = serg100; }

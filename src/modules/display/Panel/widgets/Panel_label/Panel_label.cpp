@@ -2,7 +2,7 @@
 #include "classes/IoTItem.h"
 
 //std::vector<lv_obj_t*> ui_Label(0, NULL);
-//extern "C" const lv_font_t serg45;
+extern "C" const lv_font_t serg45;
 //int nb = 0;
 
 
@@ -50,7 +50,7 @@ Panel_label::Panel_label(String parameters) : IoTItem(parameters) {
     lv_obj_set_style_text_opa(ui_Label, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_arclabel_set_text_fmt(ui_Label,"%s %s %s", descr.c_str(), value.valS.c_str(), descr1.c_str()); //lv_label_set_text_fmt
    if (shr == 45) {
-        //lv_obj_set_style_text_font(ui_Label, &serg45, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_text_font(ui_Label, &serg45, LV_PART_MAIN | LV_STATE_DEFAULT);
     } else {
         lv_obj_set_style_text_font(ui_Label, &shrit, LV_PART_MAIN | LV_STATE_DEFAULT);
     }

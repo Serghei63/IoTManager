@@ -1,0 +1,2870 @@
+#include "Global.h"
+
+#include "lvgl.h"
+#include <esp32_smartdisplay.h>
+
+#include "panel.h"
+#include "SD.h"
+#include "ff.h"
+
+
+int  color1 = 0;
+ulong next_millis = 0;
+auto lv_last_tick = millis();
+ulong sla_millis = 0;
+
+std::vector<lv_obj_t*>ui_Switc(0,NULL);
+std::vector<String>switch_id(0,"");
+std::vector<String>switch_id2(0,"");
+int isf = 0 ;
+
+std::vector<lv_obj_t*>ui_Label(0,NULL) ;
+std::vector<String>label_id(0,"0");
+std::vector<String>label_id2(0,"0");
+std::vector<String>label_descr(0,"");
+std::vector<String>label_descr1(0,"");
+  int nb = 0 ;
+ // int t = 0;
+
+std::vector<lv_obj_t*>ui_Button(0,NULL);
+std::vector<String>button_id(0,""); 
+std::vector<int>button_diger(0,0);
+std::vector<String>button_value(0,"");
+int isf1 = 0 ;
+
+
+std::vector<lv_obj_t*>ui_TabView(0,NULL);
+int tab = 0, tab2 = 0, tab3 = 0;
+std::vector<lv_obj_t*>ui_TabPage(0,NULL);
+ 
+std::vector<lv_obj_t*>ui_Container(0,NULL);
+int cont = 0 ;
+
+std::vector<lv_obj_t*>ui_Arc(0,NULL);
+std::vector<String>arc_id(0,"");
+std::vector<String>arc_id2(0,"");
+int arc = 0 ;
+ float valrt = 0;
+
+std::vector<lv_obj_t*>ui_ArcLabel(0,NULL); 
+std::vector<String>arc_labal_id(0,"");
+int arlb = 0;
+
+std::vector<lv_obj_t*>ui_TextArea(0,NULL);
+std::vector<String>TextArea_id(0,"");
+std::vector<String>TextArea_id2(0,"");
+int tex = 0 ; 
+std::vector<lv_obj_t*>ui_Keyboard1(0,NULL);
+
+
+std::vector<lv_obj_t*>ui_Bar(0,NULL);
+std::vector<String>bar_id(0,"");
+std::vector<String>bar_id2(0,"");
+int bar = 0 ;
+//int valrt = 0;
+
+std::vector<lv_obj_t*>ui_Slaider(0,NULL);
+std::vector<String>Slaider_id(0,"");
+std::vector<String>Slaider_id2(0,"");
+int sla = 0 ;
+
+std::vector<lv_obj_t*>ui_Image(0,NULL);
+int img = 0 ;
+
+
+ 
+lv_obj_t * ui_Screen1 = NULL;
+ String scrin = "";
+
+
+class Panel : public IoTItem {
+  String pere = "";
+  int mq = 0, color = 0, rotat = 0;
+  int zbg = 0;
+  float _brightness = 100;
+   public:
+    Panel(String parameters) : IoTItem(parameters) {
+     
+   
+    jsonRead(parameters, "color", color1);
+    jsonRead(parameters, "rotation", rotat);
+    jsonRead(parameters, "brightness", _brightness);
+    jsonRead(parameters, "id", scrin);
+      
+#ifdef ARDUINO_USB_CDC_ON_BOOT
+    delay(5000);
+#endif
+    Serial.begin(115200);
+    Serial.setDebugOutput(false);
+    log_i("Board: %s", BOARD_NAME);
+    log_i("CPU: %s rev%d, CPU Freq: %d Mhz, %d core(s)", ESP.getChipModel(), ESP.getChipRevision(), getCpuFrequencyMhz(), ESP.getChipCores());
+    log_i("Free heap: %d bytes", ESP.getFreeHeap());
+    log_i("Free PSRAM: %d bytes", ESP.getPsramSize());
+    log_i("SDK version: %s", ESP.getSdkVersion());
+
+    smartdisplay_init();
+
+     __attribute__((unused)) auto disp = lv_disp_get_default();
+     if (rotat == 90){
+    lv_disp_set_rotation(disp, LV_DISP_ROTATION_90);
+     }
+     if (rotat == 180){
+     lv_disp_set_rotation(disp, LV_DISP_ROTATION_180);
+     }
+     if (rotat == 270){
+     lv_disp_set_rotation(disp, LV_DISP_ROTATION_270);
+     }
+   
+
+    lv_disp_t * dispp = lv_display_get_default();
+   lv_theme_t * theme = lv_theme_default_init(dispp, lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_RED),
+                                              false, LV_FONT_DEFAULT);
+    lv_disp_set_theme(dispp, theme);
+    ui_Screen1_screen_init();
+
+    lv_disp_load_scr(ui_Screen1);
+
+    float n = _brightness/100;
+   
+    smartdisplay_lcd_set_backlight(n);
+
+    lv_obj_add_event_cb(ui_Screen1, ui_event_Scrin, LV_EVENT_PRESSED, (void*)1);
+    lv_obj_add_event_cb(ui_Screen1, ui_event_Scrin, LV_EVENT_LONG_PRESSED_REPEAT, (void*)1);
+
+     value.valD = 1;
+
+    }
+
+    
+void loop()
+{ 
+    
+    static auto last_call = millis();
+    auto now = millis();
+
+    // Обновляем тики LVGL каждые 2 мс
+    if (now - last_call >= 2) {
+        lv_tick_inc(now - lv_last_tick);
+        lv_last_tick = now;
+        lv_timer_handler();
+        last_call = now;
+    }
+
+   
+
+}
+
+
+      
+ IoTValue execute(String command, std::vector<IoTValue> &param){
+
+            if (command == "brightness"){
+                float r = param[0].valD;
+                r = r/100;
+                smartdisplay_lcd_set_backlight(r);
+            };
+
+        return {};
+
+     };
+     
+    ~Panel(){};
+};
+
+void ui_event_Scrin(lv_event_t * e) {   
+      generateOrder(scrin, "1");
+     
+}
+
+
+
+
+
+// иницилизация экрана
+void ui_Screen1_screen_init(void)
+{
+    ui_Screen1 = lv_obj_create(NULL);
+    lv_obj_add_flag(ui_Screen1, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_set_style_bg_color(ui_Screen1, lv_color_hex(color1), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_Screen1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_scrollbar_mode(ui_Screen1,LV_SCROLLBAR_MODE_AUTO);
+
+
+}
+
+void ui_Screen1_screen_destroy(void)
+{
+    if(ui_Screen1) lv_obj_del(ui_Screen1);
+
+    // NULL screen variables
+    ui_Screen1 = NULL;
+
+}
+
+
+///////////////////////////////////////////////
+// переключатели
+
+
+class Panel_swith : public IoTItem {
+private:
+    int _x = 0, _y = 0;
+    int nomer = 1;
+    String  name = "";
+    int _x1 = 60, _y1 = 30;
+    int  color_on = 578, color_of = 57645;
+    String _id2show = "";
+    String _valueSource = "unknown";
+    bool _pendingMqttUpdate = false;
+    bool _generateOrderForTracking = false;
+    unsigned long _lastOrderTime = 0;
+    unsigned long _lastExternalUpdateTime = 0;
+    String _lastExternalUpdateSource = "";
+    int isf12 = 0;
+
+public:
+    Panel_swith(String parameters) : IoTItem(parameters) {
+
+        jsonRead(parameters, "NAME", name);
+        jsonRead(parameters, "Nomer", nomer);
+
+      
+        if (name == "TabPage" && tab2 >= nomer ) 
+        {
+                ui_Switc.push_back( lv_switch_create( ui_TabPage[nomer - 1]));
+        }
+        else if (name == "Button" && isf1 >= nomer ) 
+        {   
+                ui_Switc.push_back( lv_switch_create( ui_Button[nomer - 1]));
+        }
+        else if (name == "Container" && cont >= nomer ) {
+             
+                ui_Switc.push_back( lv_switch_create( ui_Container[nomer - 1]));}
+        else 
+        {
+                ui_Switc.push_back( lv_switch_create( ui_Screen1)); 
+        } 
+
+  
+        lv_obj_add_event_cb(ui_Switc[isf], ui_event_Switch2, LV_EVENT_ALL, (void*)isf);
+   
+        
+
+         jsonRead(parameters, "x", _x);
+         jsonRead(parameters, "y", _y);
+         jsonRead(parameters,  "id2show",_id2show );
+         jsonRead(parameters, "width", _x1);
+         jsonRead(parameters, "height", _y1);
+         jsonRead(parameters, "color_of", color_of);
+         jsonRead(parameters, "color_on", color_on);
+         
+         switch_id2.push_back(_id2show);
+        switch_id.push_back(_id);
+
+        lv_obj_set_width(ui_Switc[isf], _x1);
+        lv_obj_set_height(ui_Switc[isf], _y1);
+        lv_obj_set_align(ui_Switc[isf],  LV_ALIGN_DEFAULT);
+        lv_obj_set_x(ui_Switc[isf], _x);
+        lv_obj_set_y(ui_Switc[isf], _y);
+
+         lv_obj_set_style_bg_color(ui_Switc[isf], lv_color_hex(color_of), LV_PART_MAIN | LV_STATE_DEFAULT);
+         lv_obj_set_style_bg_color(ui_Switc[isf], lv_color_hex(color_on), LV_PART_INDICATOR | LV_STATE_CHECKED);
+        isf12 = isf;
+        isf = isf + 1;
+
+        // id2show tracking
+        if (_id2show != _id) {
+        IoTItem* trackingItem = findIoTItem(_id2show);
+        if (trackingItem != nullptr) {
+            _trackingValue = &(trackingItem->value);
+            switch_id2[isf12] = " ";
+        }
+    }
+    }
+
+    void onRegEvent(IoTItem* eventItem) override {
+        if ((_trackingValue == nullptr) && eventItem && eventItem->getID() == _id2show) {
+            _trackingValue = &(eventItem->value);
+            switch_id2[isf12] = " ";
+        }
+        if (eventItem && eventItem->getID() == _id2show && !_generateOrderForTracking) {
+            if (_valueSource != "web" && _valueSource != "mqtt") {
+                _valueSource = "id2show";
+            }
+            Serial.printf("[onRegEvent] %s registered event, source: %s\n", eventItem->getID().c_str(), _valueSource.c_str());
+        }
+        if (eventItem && _id2show == eventItem->getID()) {
+            setValue(eventItem->value, false);
+        }
+        IoTItem::onRegEvent(eventItem);
+    }
+
+    void onTrackingValue(IoTItem* item) override {
+        if (!item || _id == _id2show) return;
+
+        bool isOwnOrder = _generateOrderForTracking && (millis() - _lastOrderTime < 50);
+        if (isOwnOrder) {
+            Serial.printf("[%s] onTrackingValue: own order from %s\n", _valueSource.c_str(), item->getID().c_str());
+        } else {
+            if ((millis() - _lastExternalUpdateTime < 100) && _lastExternalUpdateSource != "") {
+                _valueSource = _lastExternalUpdateSource;
+                Serial.printf("[%s] onTrackingValue: external update from %s\n", _valueSource.c_str(), item->getID().c_str());
+            } else {
+                _valueSource = "id2show";
+                Serial.printf("[id2show] onTrackingValue: external update from %s\n", item->getID().c_str());
+            }
+        }
+        _generateOrderForTracking = false;
+        _pendingMqttUpdate = false;
+        _lastExternalUpdateSource = "";
+        IoTItem::onTrackingValue(item);
+    }
+
+    String valrt = "";
+    void drawItem(IoTItem *item) {
+
+            if (value.valD == 0){
+                lv_obj_clear_state(ui_Switc[isf12],LV_STATE_CHECKED);  
+            }
+            else{
+               lv_obj_add_state(ui_Switc[isf12],LV_STATE_CHECKED);
+            }
+         
+            if (_id2show != _id && valrt != String(value.valD) && (_valueSource == "web" || _valueSource == "mqtt")){
+                _generateOrderForTracking = true;
+                _lastOrderTime = millis();
+                if ( _trackingValue == nullptr)  {
+                    otpravkaidvalue( _id2show, String(value.valD)); 
+                    valrt = String(value.valD);    
+                }
+                else {
+                    generateOrder( _id2show, String(value.valD)); 
+                    valrt = String(value.valD); 
+                }
+            }
+        
+    }
+
+
+  void onModuleOrder(String& key, String& value) override {
+        if (key == _id || key == _id2show) {
+            _valueSource = "web";
+            _pendingMqttUpdate = false;
+            if (key == _id2show && !_generateOrderForTracking) {
+                _lastExternalUpdateTime = millis();
+                _lastExternalUpdateSource = "web";
+            }
+            Serial.printf("[web] ModuleOrder: %s = %s\n", key.c_str(), value.c_str());
+        }
+        IoTItem::onModuleOrder(key, value);
+  }
+
+  void setValue(const IoTValue& Value, bool genEvent = true) {
+        value = Value;
+
+        bool directOrder = isCurrentOrderForMe();
+        if (_pendingMqttUpdate) {
+            _valueSource = "mqtt";
+            _pendingMqttUpdate = false;
+        } else if (directOrder) {
+            _valueSource = "web";
+        }
+
+        drawItem(this);
+        regEvent((String)(int)value.valD, F("Panel_swith"), false, genEvent);
+    }
+
+    String getValue() {
+        return (String)(int)value.valD;
+    }
+
+    bool isCurrentOrderForMe() {
+        if (orderBuf.length() == 0) return false;
+        String currentOrder = selectToMarker(orderBuf, ",");
+        if (currentOrder.length() == 0) return false;
+        String currentKey = selectToMarker(currentOrder, " ");
+        return currentKey == _id;
+    }
+
+
+
+
+     IoTValue execute(String command, std::vector<IoTValue> &param){
+
+            if (command == "hide"){
+                lv_obj_add_flag(ui_Switc[isf - 1], LV_OBJ_FLAG_HIDDEN);
+            };
+           
+            if (command == "show"){
+                 lv_obj_clear_flag(ui_Switc[isf - 1], LV_OBJ_FLAG_HIDDEN);
+            };
+
+            if (command == "pos"){
+                _x = param[0].valD;
+                _y = param[1].valD;
+                lv_obj_set_pos(ui_Switc[isf - 1], _x, _y);
+            }
+
+        return {};
+     };
+
+    void onMqttRecive(String& topic, String& msg) override {
+        _pendingMqttUpdate = true;
+        IoTItem::onMqttRecive(topic, msg);
+    }
+
+ ~Panel_swith(){};
+};
+
+
+// обработка переключателя с экрана
+
+void ui_event_Switch2(lv_event_t * e)
+{
+    
+   int i = (int)lv_event_get_user_data(e);
+  
+    lv_event_code_t event_code = lv_event_get_code(e);
+ 
+        
+    if(event_code == LV_EVENT_VALUE_CHANGED) {
+   
+     bool  v = lv_obj_has_state(ui_Switc[i], LV_STATE_CHECKED);
+      
+      if (v){
+         generateOrder(switch_id[i], "1" );
+      } else {
+        generateOrder(switch_id[i], "0" );
+
+      }
+    }
+    
+}
+
+
+
+
+////////////////////////////////////////////////////////////
+//текст
+
+class Panel_label : public IoTItem {
+
+private:
+
+int nomer = 1;
+String  name = "";
+int _x = 0, _y = 0,  shr = 40;
+int color = 0x1A7D35;
+lv_font_t shrit = serg20;
+String _id2show = "";
+String descr ="";
+String descr1 ="";
+int nb1 = 0;
+int _round = 0;
+String _valueSource = "unknown"; // web, mqtt, id2show
+bool _pendingMqttUpdate = false;
+bool _generateOrderForTracking = false;  // флаг: Label сам вызвал generateOrder для _id2show
+unsigned long _lastOrderTime = 0;  // время последнего generateOrder
+unsigned long _lastExternalUpdateTime = 0;  // время последнего внешнего обновления
+String _lastExternalUpdateSource = "";  // источник последнего внешнего обновления
+
+public:
+    Panel_label(String parameters) : IoTItem(parameters) {
+
+        
+        jsonRead(parameters, "NAME", name);
+        jsonRead(parameters, "Nomer", nomer);
+
+      
+        if (name == "TabPage" && tab2 >= nomer ) 
+        {
+                ui_Label.push_back( lv_label_create( ui_TabPage[nomer - 1]));
+        }
+        else if (name == "Button" && isf1 >= nomer ) 
+        {   
+                ui_Label.push_back( lv_label_create( ui_Button[nomer - 1]));
+        }
+        else if (name == "Container" && cont >= nomer ) {
+             
+                ui_Label.push_back( lv_label_create( ui_Container[nomer - 1]));}
+        else 
+        {
+                ui_Label.push_back( lv_label_create( ui_Screen1)); 
+        } 
+        
+        
+       
+
+
+         jsonRead(parameters, "x", _x);
+         jsonRead(parameters, "y", _y);
+         jsonRead(parameters, "id2show", _id2show );
+         jsonRead(parameters, "color", color);
+         jsonRead(parameters, "shrift", shr);
+        jsonRead(parameters, "descr1", descr);
+        jsonRead(parameters, "descr2", descr1);
+
+
+      
+         label_id.push_back(_id);
+         label_id2.push_back(_id2show);
+         label_descr.push_back(descr);
+         label_descr1.push_back(descr1);
+         String valy1 = label_descr[nb] + " " + value.valS + " "+ label_descr1[nb];
+
+
+        lv_obj_set_width(ui_Label[nb], LV_SIZE_CONTENT);   /// 1
+        lv_obj_set_height(ui_Label[nb], LV_SIZE_CONTENT);    /// 1
+        lv_obj_set_x(ui_Label[nb], _x);
+        lv_obj_set_y(ui_Label[nb], _y);
+        lv_obj_set_align(ui_Label[nb], LV_ALIGN_DEFAULT);
+        
+        
+
+        lv_obj_add_flag(ui_Label[nb], LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
+        lv_obj_remove_flag(ui_Label[nb], LV_OBJ_FLAG_SCROLLABLE); 
+         if (shr == 43) {}
+         else
+        {lv_obj_set_style_text_color(ui_Label[nb], lv_color_hex(color), LV_PART_MAIN | LV_STATE_DEFAULT);}
+        lv_obj_set_style_text_opa(ui_Label[nb], 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_label_set_text(ui_Label[nb], valy1.c_str());
+
+
+        conshrift( shrit , shr );
+      
+        lv_obj_set_style_text_font(ui_Label[nb], &shrit, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+        lv_obj_add_event_cb(ui_Label[nb], ui_event_Scrin, LV_EVENT_PRESSED, (void*)1);
+        nb1 = nb;
+        nb = nb + 1;
+
+        
+
+         if (_id2show != _id) {
+        IoTItem* trackingItem = findIoTItem(_id2show);
+         if (trackingItem != nullptr) {
+             _trackingValue = &(trackingItem->value);
+             label_id2[nb1] = " ";
+         }
+        }
+
+        jsonReadStr(parameters, "round", _round);
+
+}
+
+     String valrtS = "";
+     float _valrtD = 0;
+     
+     //int  d = 0;
+     void drawItem(IoTItem *item) {
+        String tmpStr = descr;
+        tmpStr += " ";
+        tmpStr += value.valS;
+        tmpStr += " ";
+        tmpStr += descr1;
+         const char*  _text = tmpStr.c_str();   
+        lv_label_set_text(ui_Label[nb1], _text);
+
+      Serial.println("[" + _valueSource + "] Draw: " + _id + " = " + String(value.valD));
+           if ( _trackingValue == nullptr &&  _valueSource == "web" ) {  
+           
+        _generateOrderForTracking = true;  // Отмечаем, что мы сами генерируем order
+        _lastOrderTime = millis();
+        otpravkaidvalue( _id2show, value.valS);
+        Serial.println("[" + _valueSource + "] Send to " + _id2show + ": " + value.valS);
+    
+           }
+           else {
+               String currentValue = value.valD ? String(value.valD) : value.valS;
+               if (getItemValue(_id2show) != currentValue && (_valueSource == "mqtt" || _valueSource == "web")) {
+                   _generateOrderForTracking = true;  // Отмечаем, что мы сами генерируем order
+                   _lastOrderTime = millis();
+                   generateOrder(_id2show, currentValue);
+                   Serial.println("[" + _valueSource + "] Order to " + _id2show + ": " + currentValue);
+               }
+           }
+    }
+  
+   void onMqttRecive(String& topic, String& msg) override {
+       if (topic.indexOf(F("control")) != -1) {
+           String key = selectFromMarkerToMarker(topic, "/", 3);
+           if (key == _id || key == _id2show) {
+              _pendingMqttUpdate = true;
+              if (key == _id2show && !_generateOrderForTracking) {
+                  _lastExternalUpdateTime = millis();
+                  _lastExternalUpdateSource = "mqtt";
+              }
+              Serial.printf("[mqtt] Control: %s = %s\n", key.c_str(), msg.c_str());
+            }
+        } else if (topic.indexOf(F("status")) != -1){
+            String key = selectFromMarkerToMarker(topic, "/", 3);
+            if (key == _id2show &&  _trackingValue == nullptr && _pendingMqttUpdate != true) {
+                
+             String valueIfJson = "";  // проверяем формат, если json то берем статус, иначе - как есть
+        if (!jsonRead(msg, F("status"), valueIfJson, false))
+          { 
+            _pendingMqttUpdate = true;
+            _lastExternalUpdateTime = millis();
+            _lastExternalUpdateSource = "mqtt";
+            Serial.printf("[mqtt-status] %s = %s (raw)\n", key.c_str(), msg.c_str());
+            generateOrder(_id, msg);
+          }
+        else    {  
+            if (value.valD == valueIfJson.toFloat() || value.valS == valueIfJson){} 
+            else{
+                _pendingMqttUpdate = true;
+                _lastExternalUpdateTime = millis();
+                _lastExternalUpdateSource = "mqtt";
+           generateOrder(_id, valueIfJson);
+           Serial.printf("[mqtt-status] %s = %s (parsed)\n", key.c_str(), valueIfJson.c_str());
+           }
+        }
+            
+           }
+        IoTItem::onMqttRecive(topic, msg);
+   }
+}
+
+  void onModuleOrder(String& key, String& value) override {
+        if (key == _id || key == _id2show) {
+            _valueSource = "web";
+            _pendingMqttUpdate = false;
+            if (key == _id2show && !_generateOrderForTracking) {
+                _lastExternalUpdateTime = millis();
+                _lastExternalUpdateSource = "web";
+            }
+            Serial.printf("[web] ModuleOrder: %s = %s\n", key.c_str(), value.c_str());
+        }
+       IoTItem::onModuleOrder(key, value);
+  }
+
+  void setValue(const IoTValue& Value, bool genEvent = true) {
+        value = Value;
+        
+        // Определяем источник значения
+        bool directOrder = isCurrentOrderForMe();
+        if (_pendingMqttUpdate) {
+            _valueSource = "mqtt";
+            _pendingMqttUpdate = false;
+        } else if (directOrder) {
+            _valueSource = "web";
+        } else if (_valueSource == "unknown") {
+            _valueSource = "web";
+        }
+    
+        if (value.valD ) {
+            if(_id != _id2show && _valrtD != value.valD ){
+                 Serial.printf("[%s] setValue: %s = %.2f\n", _valueSource.c_str(), _id.c_str(), value.valD);
+               drawItem(this);
+                _valrtD = value.valD;
+                valrtS = String(value.valD);
+                    IoTItem::setValue(Value, genEvent);
+                regEvent((String)(float)value.valD, F("Panel_label"), false, genEvent);
+            }
+        }
+
+        if (value.valS ) {
+            if(_id != _id2show && valrtS != value.valS  ){
+                Serial.printf("[%s] setValue: %s = %s\n", _valueSource.c_str(), _id.c_str(), value.valS.c_str());
+                drawItem(this);
+                valrtS = value.valS;
+                IoTItem::setValue(Value, genEvent);
+                regEvent((String)value.valS, F("Panel_label"), false, genEvent);
+            }
+        }
+     
+    }
+
+    String getValue() {
+        if (value.valD ) { 
+                return (String)(float)value.valD; 
+        } 
+       else {
+              return (String)value.valS;
+        };
+      
+   }
+
+   String getValueSource() {
+        return _valueSource;
+   }
+
+   bool isCurrentOrderForMe() {
+        if (orderBuf.length() == 0) return false;
+        String currentOrder = selectToMarker(orderBuf, ",");
+        if (currentOrder.length() == 0) return false;
+        String currentKey = selectToMarker(currentOrder, " ");
+        return currentKey == _id;
+   }
+
+   void onRegEvent(IoTItem* eventItem) override {
+        if ((_trackingValue == nullptr) && eventItem && eventItem->getID() == _id2show) {
+            _trackingValue = &(eventItem->value);
+            label_id2[nb1] = " ";
+        }
+        
+        // Отслеживаем события в _id2show для определения источника
+        if (eventItem && eventItem->getID() == _id2show && !_generateOrderForTracking) {
+            if (_valueSource != "web" && _valueSource != "mqtt") {
+                _valueSource = "id2show";  // Внешнее обновление
+            }
+            Serial.printf("[onRegEvent] %s registered event, source: %s\n", eventItem->getID().c_str(), _valueSource.c_str());
+        }
+        
+        IoTItem::onRegEvent(eventItem);
+    }
+
+void onTrackingValue(IoTItem* item) override {
+        if (item == nullptr || _id == _id2show) return;
+        
+        // Проверяем, вызвал ли это сам Label через generateOrder
+        bool isOwnOrder = _generateOrderForTracking && (millis() - _lastOrderTime < 50);  // 50ms временное окно
+        
+        if (isOwnOrder) {
+            // Это был наш Order - сохраняем текущий источник
+            Serial.printf("[%s] onTrackingValue: own order from Label\n", _valueSource.c_str());
+        } else {
+            if ((millis() - _lastExternalUpdateTime < 100) && _lastExternalUpdateSource != "") {
+                // Это внешнее обновление в течение 100ms и мы знаем его источник 
+                _valueSource = _lastExternalUpdateSource;
+                Serial.printf("[%s] onTrackingValue: external update from %s (%.0lf ms ago)\n", _valueSource.c_str(), item->getID().c_str(), (float)(millis() - _lastExternalUpdateTime));
+            } else {
+                // Это внешнее обновление, но мы не знаем источник
+                _valueSource = "id2show";
+                Serial.printf("[id2show] onTrackingValue: external update from %s\n", item->getID().c_str());
+            }
+        }
+        
+        _generateOrderForTracking = false;  // Очищаем флаг
+        _pendingMqttUpdate = false;
+        _lastExternalUpdateSource = "";  // Очищаем источник
+        IoTItem::onTrackingValue(item); // updates own value from tracked item
+    }
+
+
+
+        IoTValue execute(String command, std::vector<IoTValue> &param){
+
+            if (command == "hide"){
+                lv_obj_add_flag(ui_Label[nb - 1], LV_OBJ_FLAG_HIDDEN);
+            };
+           
+            if (command == "show"){
+                 lv_obj_clear_flag(ui_Label[nb - 1], LV_OBJ_FLAG_HIDDEN);
+            };
+
+             if (command == "color"){
+             color = param[0].valD;
+             lv_obj_set_style_text_color(ui_Label[nb], lv_color_hex(color), LV_PART_MAIN | LV_STATE_DEFAULT);
+            }
+            if (command == "pos"){
+                _x = param[0].valD;
+                _y = param[1].valD;
+                lv_obj_set_pos(ui_Label[nb - 1], _x, _y);
+    
+            }
+        return {};
+
+     }
+    
+
+ ~Panel_label(){};
+};
+
+
+
+/////////////////////////////////////////////////
+/////////////////////////////////////////////////
+////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//кнопка
+
+class Panel_button : public IoTItem {
+private:
+
+    int _x = 0, _y = 0,  _x1 = 20, _y1 = 20, color_on = 87668, color_of = 36556;
+    int nomer = 1;
+    String  name = "";
+    int color_border = 35435, size_border = 5, Visibility = 255;
+    String _id2show = "";
+    String _valueSource = "unknown";
+    bool _pendingMqttUpdate = false;
+    bool _generateOrderForTracking = false;
+    unsigned long _lastOrderTime = 0;
+    unsigned long _lastExternalUpdateTime = 0;
+    String _lastExternalUpdateSource = "";
+    int dig = 0, radius = 5;
+    int isf11 = 0;
+
+public:
+    Panel_button(String parameters) : IoTItem(parameters) {
+
+        
+        jsonRead(parameters, "NAME", name);
+        jsonRead(parameters, "Nomer", nomer);
+
+        if (name == "TabPage" && tab2 >= nomer){
+                ui_Button.push_back( lv_button_create( ui_TabPage[nomer - 1]));    
+        }
+        else if (name == "Button" && isf1 >= nomer ) {
+             
+                ui_Button.push_back( lv_button_create( ui_Button[nomer - 1]));}
+
+        else if (name == "Container" && cont >= nomer ) {
+             
+                ui_Button.push_back( lv_button_create( ui_Container[nomer - 1]));}
+
+        else {ui_Button.push_back( lv_button_create( ui_Screen1)); }
+
+         jsonRead(parameters, "diger", dig);
+       
+          
+         jsonRead(parameters, "x", _x);
+         jsonRead(parameters, "y", _y);
+         jsonRead(parameters,  "id2show", _id2show);
+        // jsonRead(parameters,  "id", _id);
+         jsonRead(parameters, "width", _x1);
+         jsonRead(parameters, "height", _y1);
+         jsonRead(parameters, "color_of", color_of);
+         jsonRead(parameters, "color_on", color_on);
+         jsonRead(parameters, "color_border", color_border);
+         jsonRead(parameters, "size_border", size_border);
+         jsonRead(parameters, "Visibility", Visibility);
+         jsonRead(parameters, "radius", radius);
+
+         
+        
+        
+
+         button_id.push_back(_id2show);
+         button_value.push_back(_id);
+    
+    lv_obj_set_width(ui_Button[isf1], _x1);
+    lv_obj_set_height(ui_Button[isf1], _y1);
+    lv_obj_set_x(ui_Button[isf1], _x);
+    lv_obj_set_y(ui_Button[isf1], _y);
+    lv_obj_set_align(ui_Button[isf1], LV_ALIGN_DEFAULT);
+    lv_obj_add_flag(ui_Button[isf1], LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
+    lv_obj_remove_flag(ui_Button[isf1], LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_set_style_bg_color(ui_Button[isf1], lv_color_hex(color_of), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_Button[isf1], lv_color_hex(color_on), LV_PART_MAIN | LV_STATE_CHECKED);
+    lv_obj_set_style_bg_opa(ui_Button[isf1], Visibility, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(ui_Button[isf1], lv_color_hex(color_border), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_opa(ui_Button[isf1], Visibility, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(ui_Button[isf1], size_border, LV_PART_MAIN | LV_STATE_DEFAULT);
+ 
+    lv_obj_set_style_radius(ui_Button[isf1], radius, LV_PART_MAIN | LV_STATE_DEFAULT);  // 0 - _radius
+
+
+     button_diger.push_back(dig);
+        if (dig == 0){
+        lv_obj_add_event_cb(ui_Button[isf1], ui_event_Button1, LV_EVENT_ALL, (void*)isf1);
+        } else {
+        lv_obj_add_event_cb(ui_Button[isf1], ui_event_Button, LV_EVENT_ALL, (void*)isf1);
+        }
+
+
+     lv_obj_add_event_cb(ui_Button[isf1], ui_event_Scrin, LV_EVENT_PRESSED, (void*)1); 
+    isf11 = isf1;
+    isf1 = isf1 + 1;   
+
+    if (_id2show != _id) {
+    IoTItem* trackingItem = findIoTItem(_id2show);
+    if (trackingItem != nullptr) {
+        _trackingValue = &(trackingItem->value);
+        button_id[isf11] = " ";
+    }
+    }
+}
+
+  void onRegEvent(IoTItem* eventItem) override {
+        if ((_trackingValue == nullptr) && eventItem && eventItem->getID() == _id2show) {
+            _trackingValue = &(eventItem->value);
+            button_id[isf11] = " ";
+        }
+        if (eventItem && eventItem->getID() == _id2show && !_generateOrderForTracking) {
+            if (_valueSource != "web" && _valueSource != "mqtt") {
+                _valueSource = "id2show";
+            }
+            Serial.printf("[onRegEvent] %s registered event, source: %s\n", eventItem->getID().c_str(), _valueSource.c_str());
+        }
+        if (eventItem && _id2show == eventItem->getID()) {
+            setValue(eventItem->value, false);
+        }
+        IoTItem::onRegEvent(eventItem);
+    }
+
+    void onTrackingValue(IoTItem* item) override {
+        if (!item || _id == _id2show) return;
+
+        bool isOwnOrder = _generateOrderForTracking && (millis() - _lastOrderTime < 50);
+        if (isOwnOrder) {
+            Serial.printf("[%s] onTrackingValue: own order from %s\n", _valueSource.c_str(), item->getID().c_str());
+        } else {
+            if ((millis() - _lastExternalUpdateTime < 100) && _lastExternalUpdateSource != "") {
+                _valueSource = _lastExternalUpdateSource;
+                Serial.printf("[%s] onTrackingValue: external update from %s\n", _valueSource.c_str(), item->getID().c_str());
+            } else {
+                _valueSource = "id2show";
+                Serial.printf("[id2show] onTrackingValue: external update from %s\n", item->getID().c_str());
+            }
+        }
+        _generateOrderForTracking = false;
+        _pendingMqttUpdate = false;
+        _lastExternalUpdateSource = "";
+        IoTItem::onTrackingValue(item);
+    }
+
+   String valrt = "";
+  void drawItem(IoTItem *item) {
+       String tmpStr = "";
+        tmpStr += item->getValue();
+        if (dig == 1){
+            if (tmpStr == "0"){
+                lv_obj_clear_state(ui_Button[isf11],LV_STATE_CHECKED);
+            }
+            else{
+               lv_obj_add_state(ui_Button[isf11],LV_STATE_CHECKED);
+            }
+
+             if (_id2show != _id && valrt != String(value.valD) && (_valueSource == "web" || _valueSource == "mqtt")){
+                _generateOrderForTracking = true;
+                _lastOrderTime = millis();
+                if ( _trackingValue == nullptr)  {
+                    otpravkaidvalue( _id2show, String(value.valD)); 
+                    valrt = String(value.valD);    
+                }
+                else { 
+                    generateOrder( _id2show, String(value.valD)); 
+                    valrt = String(value.valD); 
+                }
+             }
+        }
+    }
+
+    void onModuleOrder(String& key, String& value) override {
+        if (key == _id || key == _id2show) {
+            _valueSource = "web";
+            _pendingMqttUpdate = false;
+            if (key == _id2show && !_generateOrderForTracking) {
+                _lastExternalUpdateTime = millis();
+                _lastExternalUpdateSource = "web";
+            }
+            Serial.printf("[web] ModuleOrder: %s = %s\n", key.c_str(), value.c_str());
+        }
+        IoTItem::onModuleOrder(key, value);
+    }
+
+     void setValue(const IoTValue& Value, bool genEvent = true) {
+        value = Value;
+
+        bool directOrder = isCurrentOrderForMe();
+        if (_pendingMqttUpdate) {
+            _valueSource = "mqtt";
+            _pendingMqttUpdate = false;
+        } else if (directOrder) {
+            _valueSource = "web";
+        }
+
+        drawItem(this);
+        regEvent((String)(int)value.valD, F("Panel_button"), false, genEvent);
+    }
+
+    String getValue() {
+        return (String)(int)value.valD;
+    }
+
+    bool isCurrentOrderForMe() {
+        if (orderBuf.length() == 0) return false;
+        String currentOrder = selectToMarker(orderBuf, ",");
+        if (currentOrder.length() == 0) return false;
+        String currentKey = selectToMarker(currentOrder, " ");
+        return currentKey == _id;
+    }
+
+    IoTValue execute(String command, std::vector<IoTValue> &param){
+
+            if (command == "hide"){
+                lv_obj_add_flag(ui_Button[isf1 - 1], LV_OBJ_FLAG_HIDDEN);
+            };
+           
+            if (command == "show"){
+                 lv_obj_clear_flag(ui_Button[isf1 - 1], LV_OBJ_FLAG_HIDDEN);
+            };
+
+             if (command == "color_on"){
+             color_on = param[0].valD;
+             lv_obj_set_style_bg_color(ui_Button[isf1 - 1], lv_color_hex(color_on), LV_PART_MAIN | LV_STATE_CHECKED);
+            }
+
+              if (command == "color_of"){
+             color_of = param[0].valD;
+              lv_obj_set_style_bg_color(ui_Button[isf1], lv_color_hex(color_of), LV_PART_MAIN | LV_STATE_DEFAULT);
+            }
+
+            if (command == "pos"){
+                _x = param[0].valD;
+                _y = param[1].valD;
+                lv_obj_set_pos(ui_Button[isf1 - 1], _x, _y);
+    
+            }
+        return {};
+
+     }
+
+    void onMqttRecive(String& topic, String& msg) override {
+        _pendingMqttUpdate = true;
+        IoTItem::onMqttRecive(topic, msg);
+    }
+
+ ~Panel_button(){ };
+};
+
+
+
+// обработка кнопки с экрана
+void ui_event_Button(lv_event_t * e)
+{
+   int i = (int)lv_event_get_user_data(e);
+  
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+    if(event_code == LV_EVENT_CLICKED) {
+       bool b = lv_obj_has_state(ui_Button[i],LV_STATE_CHECKED);
+    
+       if (b){
+       
+         generateOrder( button_value[i], String("0"));
+       }
+       else{
+           generateOrder( button_value[i], String("1"));
+       }  
+    }
+}
+
+
+void ui_event_Button1(lv_event_t * e)
+{
+   int i = (int)lv_event_get_user_data(e);
+  
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+    if(event_code == LV_EVENT_PRESSED) {
+      lv_obj_add_state(ui_Button[i],LV_STATE_CHECKED);  
+    }
+
+    if(event_code == LV_EVENT_RELEASED) {
+      lv_obj_clear_state(ui_Button[i],LV_STATE_CHECKED); 
+    }
+
+
+    if(event_code == LV_EVENT_CLICKED) {
+       
+       bool b = lv_obj_has_state(ui_Button[i],LV_STATE_CHECKED);
+    
+       if (b){
+       }
+       else{
+       
+        generateOrder( button_value[i], "1"); 
+        lv_obj_clear_state(ui_Button[i],LV_STATE_CHECKED);
+         
+       }  
+    }
+}
+
+
+
+//таблица
+
+class Panel_tabview : public IoTItem {
+private:
+int _x = 0, _y = 0,  _x1 = 20, _y1 = 20,  tab1 = 50,  shrift = 20;  
+int color = 0;
+lv_font_t ffffgg = serg20;
+int nomer = 1;
+String  name = "";
+String position = "";
+
+public:
+    Panel_tabview(String parameters) : IoTItem(parameters) {  
+
+         jsonRead(parameters, "x", _x);
+         jsonRead(parameters, "y", _y);
+         jsonRead(parameters,  "size", tab1);
+         jsonRead(parameters, "width", _x1);
+         jsonRead(parameters, "height", _y1);
+         jsonRead(parameters, "color", color);
+         jsonRead(parameters, "TabPage", tab2);
+         jsonRead(parameters, "shrift", shrift);
+         jsonRead(parameters, "position", position);
+      
+
+        conshrift( ffffgg, shrift);
+
+        jsonRead(parameters, "NAME", name);
+        jsonRead(parameters, "Nomer", nomer);
+
+        if (name == "TabPage" && tab3 >= nomer){
+                ui_TabView.push_back( lv_tabview_create( ui_TabPage[nomer - 1]));    
+        }
+        else if (name == "Button" && isf1 >= nomer ) {
+             
+                ui_TabView.push_back( lv_tabview_create( ui_Button[nomer - 1]));}
+
+        else if (name == "Container" && cont >= nomer ) {
+             
+                ui_TabView.push_back(lv_tabview_create( ui_Container[nomer - 1]));}
+
+        else {ui_TabView.push_back( lv_tabview_create( ui_Screen1)); }
+
+
+        if (position == "left"){
+                lv_tabview_set_tab_bar_position(ui_TabView[tab], LV_DIR_LEFT); }
+        else if (position == "right"){
+                lv_tabview_set_tab_bar_position(ui_TabView[tab], LV_DIR_RIGHT); }
+        else if (position == "bottom"){
+                lv_tabview_set_tab_bar_position(ui_TabView[tab], LV_DIR_BOTTOM); }
+         else {
+                lv_tabview_set_tab_bar_position(ui_TabView[tab], LV_DIR_TOP); }        
+
+
+
+        lv_tabview_set_tab_bar_size(ui_TabView[tab], tab1);
+        lv_obj_set_x(ui_TabView[tab], _x);
+        lv_obj_set_y(ui_TabView[tab], _y);
+        lv_obj_set_width(ui_TabView[tab], _x1);
+        lv_obj_set_height(ui_TabView[tab], _y1);
+        lv_obj_set_align(ui_TabView[tab], LV_ALIGN_DEFAULT);
+        lv_obj_add_flag(ui_TabView[tab], LV_OBJ_FLAG_SCROLLABLE); 
+        lv_obj_set_style_text_font(lv_tabview_get_tab_bar(ui_TabView[tab]),  &ffffgg,
+                               LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_color(lv_tabview_get_tab_bar(ui_TabView[tab]), lv_color_hex(color),
+                              LV_PART_MAIN | LV_STATE_DEFAULT);
+                             
+     
+     int b = tab3;                       
+
+     for (size_t i = b; i < tab2 + b; i++)
+     {
+       
+        
+        int p = i + 1 - b, color10 = 0;
+        String _i = String(p);
+        String tex = "text" + _i;
+        String text = "";
+        String col = "color" + _i;
+
+        jsonRead(parameters, tex, text);
+        jsonRead(parameters, col, color10);
+
+        const char*  _text = text.c_str();
+        ui_TabPage.push_back( lv_tabview_add_tab(ui_TabView[tab], _text));
+        lv_obj_set_style_bg_color(ui_TabPage[i], lv_color_hex(color10), LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_opa(ui_TabPage[i], 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+        lv_obj_add_event_cb(ui_TabPage[i], ui_event_Scrin, LV_EVENT_PRESSED, (void*)1);
+
+        tab3 = tab3 + 1;
+     }
+    
+tab = tab + 1;
+}
+
+
+     IoTValue execute(String command, std::vector<IoTValue> &param){
+
+            if (command == "hide"){
+                lv_obj_add_flag(ui_TabView[tab - 1], LV_OBJ_FLAG_HIDDEN);
+            };
+           
+            if (command == "show"){
+                 lv_obj_clear_flag(ui_TabView[tab - 1], LV_OBJ_FLAG_HIDDEN);
+            };
+
+             if (command == "color"){
+             color = param[0].valD;
+             int r = param[1].valD;
+             lv_obj_set_style_bg_color(ui_TabPage[r], lv_color_hex(color), LV_PART_MAIN | LV_STATE_DEFAULT);
+            }
+            if (command == "pos"){
+                _x = param[0].valD;
+                _y = param[1].valD;
+                lv_obj_set_pos(ui_TabView[tab - 1], _x, _y);
+    
+            }
+        return {};
+
+        }
+
+
+    void onMqttRecive(String& topic, String& msg) override {
+        // Panel_tabview may not need MQTT handling, but adding for consistency
+        IoTItem::onMqttRecive(topic, msg);
+    }
+
+ ~Panel_tabview(){};
+};
+
+/////////////////////////
+// контейнер
+
+
+class Panel_Container : public IoTItem {
+
+private:
+
+int nomer = 1;
+String  name = "";
+int _x = 0, _y = 0, _x1 = 0, _y1 =0;
+
+int color = 0x1A7D35;
+int color_border = 35435, size_border = 5;
+
+int b = 0;
+lv_obj_t * ui_Cont = NULL;
+
+public:
+    Panel_Container(String parameters) : IoTItem(parameters) {
+
+        
+        jsonRead(parameters, "NAME", name);
+        jsonRead(parameters, "Nomer", nomer);
+
+      
+        if (name == "TabPage" && tab2 >= nomer ) //&& ui_TabPage[nomer - 1] != NULL)
+        {
+                ui_Cont = lv_obj_create( ui_TabPage[nomer - 1]);
+        }
+        else if (name == "Button" && isf1 >= nomer ) // && ui_Button[nomer - 1] != NULL) 
+        {   
+                ui_Cont = lv_obj_create( ui_Button[nomer - 1]);
+        }
+        else 
+        {
+                ui_Cont = lv_obj_create( ui_Screen1); 
+        } 
+        
+       
+
+         jsonRead(parameters, "x", _x);
+         jsonRead(parameters, "y", _y);
+         jsonRead(parameters, "width", _x1);
+         jsonRead(parameters, "height", _y1);
+         jsonRead(parameters, "color", color);
+         jsonRead(parameters, "color_border", color_border);
+         jsonRead(parameters, "size_border", size_border);   
+
+   
+    lv_obj_remove_style_all(ui_Cont);
+    lv_obj_set_x(ui_Cont, _x);
+    lv_obj_set_y(ui_Cont, _y);
+    lv_obj_set_width(ui_Cont, _x1);
+    lv_obj_set_height(ui_Cont, _y1);
+    lv_obj_set_align(ui_Cont, LV_ALIGN_DEFAULT);
+    lv_obj_add_flag(ui_Cont,  LV_OBJ_FLAG_SCROLLABLE); 
+    lv_obj_set_style_radius(ui_Cont, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_Cont, lv_color_hex(color), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_Cont, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(ui_Cont, lv_color_hex(color_border), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_opa(ui_Cont, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(ui_Cont, size_border, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_scrollbar_mode(ui_Cont, LV_SCROLLBAR_MODE_AUTO);
+
+    lv_obj_add_event_cb(ui_Cont, ui_event_Scrin, LV_EVENT_PRESSED, (void*)1);
+    
+     ui_Container.push_back(ui_Cont);
+
+      cont = cont + 1;
+      
+    }
+      
+
+
+     IoTValue execute(String command, std::vector<IoTValue> &param){
+
+            if (command == "hide"){
+                lv_obj_add_flag(ui_Cont, LV_OBJ_FLAG_HIDDEN);
+            };
+           
+            if (command == "show"){
+                 lv_obj_clear_flag(ui_Cont, LV_OBJ_FLAG_HIDDEN);
+            };
+
+             if (command == "color"){
+             color = param[0].valD;
+             lv_obj_set_style_bg_color(ui_Cont, lv_color_hex(color), LV_PART_MAIN | LV_STATE_DEFAULT);
+            }
+            if (command == "pos"){
+                _x = param[0].valD;
+                _y = param[1].valD;
+                lv_obj_set_pos(ui_Cont, _x, _y);
+    
+            }
+        return {};
+
+     };
+    
+
+    void onMqttRecive(String& topic, String& msg) override {
+        // Panel_Container may not need MQTT handling, but adding for consistency
+        IoTItem::onMqttRecive(topic, msg);
+    }
+
+ ~Panel_Container(){};
+};
+
+
+
+
+/////////////////////////////////////////////////////////
+///////  arc
+
+class Panel_arc : public IoTItem {
+
+private:
+
+int nomer = 1;
+String  name = "";
+int _x = 0, _y = 0, _x1 = 0, _y1 =0;
+int _x2 = 0, _y2 = 100, _x3 = 120, _y3 = 60;
+int color = 0x1A7D35;
+int  size = 15;
+//int valy = 0;
+String _id2show = "";
+String _valueSource = "unknown";
+bool _pendingMqttUpdate = false;
+bool _generateOrderForTracking = false;
+unsigned long _lastOrderTime = 0;
+unsigned long _lastExternalUpdateTime = 0;
+String _lastExternalUpdateSource = "";
+int arc1 = 0;
+//int _round = 0;
+
+public:
+    Panel_arc(String parameters) : IoTItem(parameters) {
+
+        
+        jsonRead(parameters, "NAME", name);
+        jsonRead(parameters, "Nomer", nomer);
+
+        
+        jsonRead(parameters, "id2show", _id2show);
+        arc_id2.push_back(_id2show);
+        arc_id.push_back(_id);
+    
+      
+        if (name == "TabPage" && tab2 >= nomer ) //&& ui_TabPage[nomer - 1] != NULL)
+        {
+                ui_Arc.push_back( lv_arc_create( ui_TabPage[nomer - 1]));
+        }
+          else if (name == "Button" && isf1 >= nomer ) // && ui_Button[nomer - 1] != NULL) 
+        {   
+                ui_Arc.push_back( lv_arc_create( ui_Button[nomer - 1]));
+        }
+        else if (name == "Container" && cont >= nomer ) {
+             
+                ui_Arc.push_back( lv_arc_create( ui_Container[nomer - 1]));}
+        else 
+        {
+                ui_Arc.push_back( lv_arc_create( ui_Screen1)); 
+        } 
+           
+
+         jsonRead(parameters, "x", _x);
+         jsonRead(parameters, "y", _y);
+         jsonRead(parameters, "width", _x1);
+         jsonRead(parameters, "height", _y1);
+         jsonRead(parameters, "color", color);
+         jsonRead(parameters, "size", size);
+         jsonRead(parameters, "range_sart", _x2);
+         jsonRead(parameters, "range_end", _y2);
+         jsonRead(parameters, "angles_start", _x3);
+         jsonRead(parameters, "angles_end", _y3);
+        // jsonRead(parameters, "round", _round);
+         
+      
+    lv_obj_set_width( ui_Arc[arc], _x1);
+    lv_obj_set_height( ui_Arc[arc], _y1);
+    lv_obj_set_x( ui_Arc[arc], _x);
+    lv_obj_set_y( ui_Arc[arc], _y);
+    lv_arc_set_range( ui_Arc[arc], _x2 * 10, _y2 * 10);
+    lv_arc_set_value( ui_Arc[arc], value.valD * 10);
+    lv_arc_set_bg_angles( ui_Arc[arc], _x3, _y3);
+
+    lv_obj_set_style_arc_color(ui_Arc[arc], lv_color_hex(color), LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_arc_width(ui_Arc[arc], size, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+   
+    lv_obj_set_style_bg_color( ui_Arc[arc], lv_color_hex(0xE05151), LV_PART_KNOB | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa( ui_Arc[arc], 255, LV_PART_KNOB | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_grad_color( ui_Arc[arc], lv_color_hex(0x211515), LV_PART_KNOB | LV_STATE_DEFAULT);
+
+    
+        lv_obj_add_event_cb(ui_Arc[arc], ui_event_Arc, LV_EVENT_ALL, (void*)arc);
+
+lv_obj_add_event_cb(ui_Arc[arc], ui_event_Scrin, LV_EVENT_PRESSED, (void*)1);
+       arc1 = arc;
+         arc = arc + 1;
+
+      if (_id2show != _id) {
+        IoTItem* trackingItem = findIoTItem(_id2show);
+        if (trackingItem != nullptr) {
+            _trackingValue = &(trackingItem->value);
+         arc_id2[arc1] = ""; 
+        }
+    }
+}
+
+String valrt = "";
+void drawItem(IoTItem *item) {
+
+            lv_arc_set_value( ui_Arc[arc1], value.valD * 10);
+
+
+            if (_id2show != _id && valrt != String(value.valD) && (_valueSource == "web" || _valueSource == "mqtt")){
+                _generateOrderForTracking = true;
+                _lastOrderTime = millis();
+                if ( findIoTItem(_id2show) == nullptr)  {
+                    otpravkaidvalue( _id2show, String(value.valD)); 
+                    valrt = String(value.valD);    
+                }
+                else { generateOrder( _id2show, String(value.valD)); 
+                    valrt = String(value.valD); 
+                }
+            }
+    }
+
+  void setValue(const IoTValue& Value, bool genEvent = true) {
+        value = Value;
+
+        bool directOrder = isCurrentOrderForMe();
+        if (_pendingMqttUpdate) {
+            _valueSource = "mqtt";
+            _pendingMqttUpdate = false;
+        } else if (directOrder) {
+            _valueSource = "web";
+        }
+
+        drawItem(this);
+        regEvent((String)(float)value.valD, F("Panel_arc"), false, genEvent);
+    }
+
+    String getValue() {
+        return (String)(float)value.valD;
+    }
+
+
+    int j = 0;
+    void onRegEvent(IoTItem* item) override {
+        if ((_trackingValue == nullptr) && (item != nullptr) && (item->getID() == _id2show) && ( j < 2)) {
+            _trackingValue = &(item->value);
+            j = j + 1;
+            arc_id2[arc1] = "";
+        }
+        if (item && item->getID() == _id2show && !_generateOrderForTracking) {
+            if (_valueSource != "web" && _valueSource != "mqtt") {
+                _valueSource = "id2show";
+            }
+            Serial.printf("[onRegEvent] %s registered event, source: %s\n", item->getID().c_str(), _valueSource.c_str());
+        }
+        IoTItem::onRegEvent(item);
+    }
+
+    void onTrackingValue(IoTItem* item) override {
+        if (item == nullptr || _id == _id2show) return;
+
+        bool isOwnOrder = _generateOrderForTracking && (millis() - _lastOrderTime < 50);
+        if (isOwnOrder) {
+            Serial.printf("[%s] onTrackingValue: own order from %s\n", _valueSource.c_str(), item->getID().c_str());
+        } else {
+            if ((millis() - _lastExternalUpdateTime < 100) && _lastExternalUpdateSource != "") {
+                _valueSource = _lastExternalUpdateSource;
+                Serial.printf("[%s] onTrackingValue: external update from %s\n", _valueSource.c_str(), item->getID().c_str());
+            } else {
+                _valueSource = "id2show";
+                Serial.printf("[id2show] onTrackingValue: external update from %s\n", item->getID().c_str());
+            }
+        }
+        _generateOrderForTracking = false;
+        _pendingMqttUpdate = false;
+        _lastExternalUpdateSource = "";
+        IoTItem::onTrackingValue(item); // updates own value from tracked item
+    }
+
+    void onModuleOrder(String& key, String& value) override {
+        if (key == _id || key == _id2show) {
+            _valueSource = "web";
+            _pendingMqttUpdate = false;
+            if (key == _id2show && !_generateOrderForTracking) {
+                _lastExternalUpdateTime = millis();
+                _lastExternalUpdateSource = "web";
+            }
+            Serial.printf("[web] ModuleOrder: %s = %s\n", key.c_str(), value.c_str());
+        }
+        IoTItem::onModuleOrder(key, value);
+    }
+
+    bool isCurrentOrderForMe() {
+        if (orderBuf.length() == 0) return false;
+        String currentOrder = selectToMarker(orderBuf, ",");
+        if (currentOrder.length() == 0) return false;
+        String currentKey = selectToMarker(currentOrder, " ");
+        return currentKey == _id;
+    }
+
+    IoTValue execute(String command, std::vector<IoTValue> &param){
+
+            if (command == "hide"){
+                lv_obj_add_flag(ui_Arc[arc - 1], LV_OBJ_FLAG_HIDDEN);
+            };
+           
+            if (command == "show"){
+                 lv_obj_clear_flag(ui_Arc[arc - 1], LV_OBJ_FLAG_HIDDEN);
+            };
+
+             if (command == "color"){
+             color = param[0].valD;
+             lv_obj_set_style_arc_color(ui_Arc[arc - 1], lv_color_hex(color), LV_PART_INDICATOR | LV_STATE_DEFAULT);
+            }
+            if (command == "pos"){
+                _x = param[0].valD;
+                _y = param[1].valD;
+                lv_obj_set_pos(ui_Arc[arc - 1], _x, _y);
+    
+            }
+        return {};
+
+     };
+
+
+
+    void onMqttRecive(String& topic, String& msg) override {
+        _pendingMqttUpdate = true;
+        IoTItem::onMqttRecive(topic, msg);
+    }
+
+ ~Panel_arc(){};
+};
+
+
+// обработка дуги с экрана
+void ui_event_Arc(lv_event_t * e)
+{
+   int i = (int)lv_event_get_user_data(e);
+  
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+    
+    if(event_code == LV_EVENT_VALUE_CHANGED) {
+   
+      valrt = lv_arc_get_value(ui_Arc[i]);   
+    }
+    if (event_code == LV_EVENT_RELEASED){ 
+
+    String _valrt = String(valrt / 10);
+        generateOrder( arc_id[i], String(valrt / 10));
+    }    
+    
+
+}
+
+///////////////////////////////////////////
+//////// текст на дуге
+
+
+class Panel_arc_text : public IoTItem {
+
+private:
+
+int nomer = 1;
+String  name = "";
+int _x = 0, _y = 0, _x1 = 0, _y1 =0;
+int _x2 = 0, _y2 = 100, _x3 = 120, _y3 = 60;
+String id5 = "";
+int color = 0x1A7D35;
+int color_border = 35435, size = 15;
+int shr = 20;
+lv_obj_t * arclabel = NULL;
+String valy = "";
+lv_font_t shrit7 = serg20;
+
+public:
+    Panel_arc_text(String parameters) : IoTItem(parameters) {
+        
+        jsonRead(parameters, "NAME", name);
+        jsonRead(parameters, "Nomer", nomer);
+
+      
+        if (name == "TabPage" && tab2 >= nomer ) //&& ui_TabPage[nomer - 1] != NULL)
+        {
+                ui_ArcLabel.push_back(lv_arclabel_create( ui_TabPage[nomer - 1]));
+        }
+          else if (name == "Button" && isf1 >= nomer ) // && ui_Button[nomer - 1] != NULL) 
+        {   
+                ui_ArcLabel.push_back(lv_arclabel_create( ui_Button[nomer - 1]));
+        }
+        else if (name == "Container" && cont >= nomer ) {
+             
+              ui_ArcLabel.push_back(lv_arclabel_create( ui_Container[nomer - 1]));}
+        else 
+        {
+               ui_ArcLabel.push_back( lv_arclabel_create( ui_Screen1)); 
+        } 
+        
+       
+
+         jsonRead(parameters, "x", _x);
+         jsonRead(parameters, "y", _y);
+         jsonRead(parameters, "width", _x1);
+         jsonRead(parameters, "height", _y1);
+         jsonRead(parameters, "color", color);
+         jsonRead(parameters, "angles_start", _x3);
+         jsonRead(parameters, "shrift", shr);
+        // jsonRead(parameters, "val", valy);
+         jsonRead(parameters, "id", id5);
+
+        arc_labal_id.push_back(id5);
+        conshrift( shrit7 , shr );
+      
+
+
+
+    lv_obj_set_x( ui_ArcLabel[arlb], _x);
+    lv_obj_set_y( ui_ArcLabel[arlb], _y);
+    lv_obj_set_size(ui_ArcLabel[arlb], _x1 , _y1 );
+    lv_obj_set_style_text_color(ui_ArcLabel[arlb], lv_color_hex(color), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_ArcLabel[arlb], &shrit7, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_arclabel_set_text(ui_ArcLabel[arlb],  value.valS.c_str());
+    lv_arclabel_set_dir(ui_ArcLabel[arlb], LV_ARCLABEL_DIR_CLOCKWISE);
+    lv_arclabel_set_angle_start(ui_ArcLabel[arlb], _x3);
+    lv_arclabel_set_radius(ui_ArcLabel[arlb], LV_PCT(_x1 / 2 - shr - shr - shr ));
+    lv_arclabel_set_text_vertical_align(ui_ArcLabel[arlb], LV_ARCLABEL_TEXT_ALIGN_DEFAULT);
+    lv_arclabel_set_text_horizontal_align(ui_ArcLabel[arlb], LV_ARCLABEL_TEXT_ALIGN_DEFAULT);
+
+    lv_obj_add_event_cb(ui_ArcLabel[arlb], ui_event_Scrin, LV_EVENT_PRESSED, (void*)1);
+
+
+  arlb = arlb + 1;
+  value.valS = valy; 
+
+}
+
+ void setValue(const IoTValue& Value, bool genEvent = true) {
+        value = Value;
+        regEvent((String)value.valS, F("Panel_arc_text"), false, genEvent);
+    }
+
+    String getValue() {
+        return (String)value.valS;
+    }
+
+   
+    IoTValue execute(String command, std::vector<IoTValue> &param){
+
+            if (command == "hide"){
+                lv_obj_add_flag(ui_ArcLabel[arlb - 1], LV_OBJ_FLAG_HIDDEN);
+            };
+           
+            if (command == "show"){
+                 lv_obj_clear_flag(ui_ArcLabel[arlb - 1], LV_OBJ_FLAG_HIDDEN);
+            };
+
+             if (command == "color"){
+             color = param[0].valD;
+             lv_obj_set_style_text_color(ui_ArcLabel[arlb - 1], lv_color_hex(color), LV_PART_INDICATOR | LV_STATE_DEFAULT);
+            }
+            if (command == "pos"){
+                _x = param[0].valD;
+                _y = param[1].valD;
+                lv_obj_set_pos(ui_ArcLabel[arlb - 1], _x, _y);
+    
+            }
+        return {};
+
+     };
+
+
+
+    void onMqttRecive(String& topic, String& msg) override {
+        // Panel_arc_text may not need MQTT handling, but adding for consistency
+        IoTItem::onMqttRecive(topic, msg);
+    }
+
+ ~Panel_arc_text(){};
+};
+
+
+
+
+
+//////////////////////////////////////////
+/////// ввод чиса
+
+class Panel_TextArea : public IoTItem {
+
+private:
+
+int nomer = 1;
+String  name = "";
+int _x = 0, _y = 0, _x1 = 0, _y1 =0, shr = 40;
+
+int color = 0x1A7D35;
+int color_border = 35435, size_border = 5;
+
+int b = 0;
+
+String valy = "";
+lv_font_t shrit  = serg20; 
+int tex1= 0;
+String _id2show = "";
+String _valueSource = "unknown";
+bool _pendingMqttUpdate = false;
+bool _generateOrderForTracking = false;
+unsigned long _lastOrderTime = 0;
+unsigned long _lastExternalUpdateTime = 0;
+String _lastExternalUpdateSource = "";
+
+public:
+    Panel_TextArea(String parameters) : IoTItem(parameters) {
+
+        
+        
+        jsonRead(parameters, "NAME", name);
+        jsonRead(parameters, "Nomer", nomer);
+
+        //int t = nomer - 1;
+
+        ui_Keyboard1.push_back( lv_keyboard_create(ui_Screen1));
+
+        if (name == "TabPage" && tab2 >= nomer ) 
+        {
+                ui_TextArea.push_back( lv_textarea_create( ui_TabPage[nomer - 1]));
+               // ui_Keyboard1.push_back( lv_keyboard_create(ui_TabPage[nomer - 1]));
+           
+        }
+          else if (name == "Button" && isf1 >= nomer ) 
+        {   
+                ui_TextArea.push_back( lv_textarea_create( ui_Button[nomer - 1]));
+               // ui_Keyboard1.push_back( lv_keyboard_create(ui_Button[nomer - 1]));
+              
+        }
+        else if (name == "Container" && cont >= nomer ) {
+             
+                ui_TextArea.push_back( lv_textarea_create( ui_Container[nomer - 1]));
+               // ui_Keyboard1.push_back( lv_keyboard_create(ui_Container[nomer - 1]));
+               
+            
+            }
+        else 
+        {
+                ui_TextArea.push_back( lv_textarea_create( ui_Screen1)); 
+               // ui_Keyboard1.push_back( lv_keyboard_create(ui_Screen1));
+               
+        } 
+        
+       
+         jsonRead(parameters,  "id2show", _id2show);
+         jsonRead(parameters, "shrift", shr);
+         jsonRead(parameters, "x", _x);
+         jsonRead(parameters, "y", _y);
+         jsonRead(parameters, "width", _x1);
+         jsonRead(parameters, "height", _y1);
+         jsonRead(parameters, "color", color);
+        // jsonRead(parameters, "val", valy);
+
+         TextArea_id.push_back(_id);
+         TextArea_id2.push_back(_id2show);
+
+        if (_id2show != _id) {
+        IoTItem* trackingItem = findIoTItem(_id2show);
+        if (trackingItem != nullptr) {
+            _trackingValue = &(trackingItem->value);
+            setValue(trackingItem->value, false);
+            TextArea_id2[tex] = "";
+        }
+    }
+
+
+    lv_keyboard_set_mode(ui_Keyboard1[tex], LV_KEYBOARD_MODE_NUMBER);
+    lv_obj_set_width(ui_Keyboard1[tex], 370);
+    lv_obj_set_height(ui_Keyboard1[tex], 180);
+    lv_obj_set_x(ui_Keyboard1[tex], _x);
+    lv_obj_set_y(ui_Keyboard1[tex], _y + 60);
+    lv_obj_set_align(ui_Keyboard1[tex], LV_ALIGN_DEFAULT);
+    lv_obj_add_flag(ui_Keyboard1[tex], LV_OBJ_FLAG_HIDDEN);
+
+    lv_obj_set_width(ui_TextArea[tex], 100);
+    lv_obj_set_height(ui_TextArea[tex], 50);
+    lv_obj_set_x(ui_TextArea[tex], _x);
+    lv_obj_set_y(ui_TextArea[tex], _y);
+    lv_obj_set_align(ui_TextArea[tex], LV_ALIGN_DEFAULT);
+    lv_textarea_set_text(ui_TextArea[tex], value.valS.c_str());
+    lv_textarea_set_placeholder_text(ui_TextArea[tex], "0");
+
+    lv_keyboard_set_textarea(ui_Keyboard1[tex],ui_TextArea[tex]);
+
+     conshrift( shrit , shr );
+      
+     lv_obj_set_style_text_font(ui_TextArea[tex], &serg20, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+     lv_obj_add_event_cb(ui_TextArea[tex], ui_event_TextArea, LV_EVENT_ALL, (void*)tex);
+     lv_obj_add_event_cb(ui_Keyboard1[tex], ui_event_key, LV_EVENT_ALL, (void*)tex);
+      
+    lv_obj_add_event_cb(ui_Keyboard1[tex], ui_event_Scrin, LV_EVENT_PRESSED, (void*)1);
+
+       tex1 = tex;
+      tex = tex + 1;
+      //value.valS = valy;
+
+
+    }
+
+
+      
+
+String valrt = "";
+ void setValue(const IoTValue& Value, bool genEvent = true) {
+        value = Value;
+
+        bool directOrder = isCurrentOrderForMe();
+        if (_pendingMqttUpdate) {
+            _valueSource = "mqtt";
+            _pendingMqttUpdate = false;
+        } else if (directOrder) {
+            _valueSource = "web";
+        }
+
+        lv_textarea_set_text(ui_TextArea[tex1], value.valS.c_str());
+        if (_id2show != _id && valrt != String(value.valD) && (_valueSource == "web" || _valueSource == "mqtt")){
+            _generateOrderForTracking = true;
+            _lastOrderTime = millis();
+            if ( _trackingValue == nullptr)  {
+                otpravkaidvalue( _id2show, String(value.valD)); 
+                valrt = String(value.valD);    
+            }
+            else { generateOrder( _id2show, String(value.valD)); 
+                valrt = String(value.valD); 
+             }
+        }
+ 
+        regEvent((String)value.valS, F("Panel_TextArea"), false, genEvent);
+    }
+
+    String getValue() {
+        return (String)value.valS;
+    }
+
+    void onRegEvent(IoTItem* eventItem) override {
+        if (!eventItem || _id2show == "") return;
+
+        if ((_trackingValue == nullptr) && eventItem->getID() == _id2show) {
+            _trackingValue = &(eventItem->value);
+            TextArea_id2[tex1] = "";
+        }
+        if (eventItem && eventItem->getID() == _id2show && !_generateOrderForTracking) {
+            if (_valueSource != "web" && _valueSource != "mqtt") {
+                _valueSource = "id2show";
+            }
+            Serial.printf("[onRegEvent] %s registered event, source: %s\n", eventItem->getID().c_str(), _valueSource.c_str());
+        }
+        if (eventItem->getID() == _id2show) {
+            setValue(eventItem->value, false);
+        }
+
+        IoTItem::onRegEvent(eventItem);
+    }
+
+    void onTrackingValue(IoTItem* eventItem) override {
+        if (!eventItem || _id == _id2show) return;
+
+        bool isOwnOrder = _generateOrderForTracking && (millis() - _lastOrderTime < 50);
+        if (isOwnOrder) {
+            Serial.printf("[%s] onTrackingValue: own order from %s\n", _valueSource.c_str(), eventItem->getID().c_str());
+        } else {
+            if ((millis() - _lastExternalUpdateTime < 100) && _lastExternalUpdateSource != "") {
+                _valueSource = _lastExternalUpdateSource;
+                Serial.printf("[%s] onTrackingValue: external update from %s\n", _valueSource.c_str(), eventItem->getID().c_str());
+            } else {
+                _valueSource = "id2show";
+                Serial.printf("[id2show] onTrackingValue: external update from %s\n", eventItem->getID().c_str());
+            }
+        }
+        _generateOrderForTracking = false;
+        _pendingMqttUpdate = false;
+        _lastExternalUpdateSource = "";
+        IoTItem::onTrackingValue(eventItem); // updates our own value
+    }
+
+    void onModuleOrder(String& key, String& value) override {
+        if (key == _id || key == _id2show) {
+            _valueSource = "web";
+            _pendingMqttUpdate = false;
+            if (key == _id2show && !_generateOrderForTracking) {
+                _lastExternalUpdateTime = millis();
+                _lastExternalUpdateSource = "web";
+            }
+            Serial.printf("[web] ModuleOrder: %s = %s\n", key.c_str(), value.c_str());
+        }
+        IoTItem::onModuleOrder(key, value);
+    }
+
+    bool isCurrentOrderForMe() {
+        if (orderBuf.length() == 0) return false;
+        String currentOrder = selectToMarker(orderBuf, ",");
+        if (currentOrder.length() == 0) return false;
+        String currentKey = selectToMarker(currentOrder, " ");
+        return currentKey == _id;
+    }
+
+     IoTValue execute(String command, std::vector<IoTValue> &param){
+
+            if (command == "hide"){
+                lv_obj_add_flag(ui_TextArea[tex - 1], LV_OBJ_FLAG_HIDDEN);
+            };
+           
+            if (command == "show"){
+                 lv_obj_clear_flag(ui_TextArea[tex - 1], LV_OBJ_FLAG_HIDDEN);
+            };
+
+             if (command == "color"){
+             color = param[0].valD;
+             lv_obj_set_style_bg_color(ui_TextArea[tex - 1], lv_color_hex(color), LV_PART_MAIN | LV_STATE_DEFAULT);
+            }
+            if (command == "pos"){
+                _x = param[0].valD;
+                _y = param[1].valD;
+                lv_obj_set_pos(ui_TextArea[tex - 1], _x, _y);
+    
+            }
+        return {};
+
+     };
+    
+
+    void onMqttRecive(String& topic, String& msg) override {
+        _pendingMqttUpdate = true;
+        IoTItem::onMqttRecive(topic, msg);
+    }
+
+ ~Panel_TextArea(){};
+};
+
+
+// обработка числа с экрана
+void ui_event_key(lv_event_t * e)
+{
+   int i = (int)lv_event_get_user_data(e);
+  
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+    String vert = "";
+
+
+    if (event_code == LV_EVENT_READY){ 
+    vert = lv_textarea_get_text(ui_TextArea[i]);
+
+       generateOrder( TextArea_id[i], vert);
+    }       
+
+}
+
+
+void ui_event_TextArea(lv_event_t * e)
+{
+   int i = (int)lv_event_get_user_data(e);
+  
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+   // String vert = "";
+
+
+    if (event_code == LV_EVENT_CLICKED){ 
+
+        
+
+
+       if (lv_obj_has_flag(ui_Keyboard1[i],LV_OBJ_FLAG_HIDDEN)){
+            lv_obj_clear_flag(ui_Keyboard1[i], LV_OBJ_FLAG_HIDDEN);
+            lv_obj_move_foreground(ui_Keyboard1[i]);
+        }
+        else {
+            lv_obj_add_flag(ui_Keyboard1[i], LV_OBJ_FLAG_HIDDEN);
+        }
+    }    
+}
+
+
+
+
+
+
+
+/////////////////////////////////////////////////////////
+/////// BAR /////////////////////
+
+class Panel_bar : public IoTItem {
+
+private:
+
+int nomer = 1;
+String  name = "";
+int _x = 0, _y = 0, _x1 = 0, _y1 =0;
+int _x2 = 0, _y2 = 100, _x3 = 120, _y3 = 60;
+int color = 0x1A7D35;
+int valy = 0;
+String _id2show = "";
+String _valueSource = "unknown";
+bool _pendingMqttUpdate = false;
+bool _generateOrderForTracking = false;
+unsigned long _lastOrderTime = 0;
+unsigned long _lastExternalUpdateTime = 0;
+String _lastExternalUpdateSource = "";
+int bar1 = 0;
+
+public:
+    Panel_bar(String parameters) : IoTItem(parameters) {
+
+        
+        jsonRead(parameters, "NAME", name);
+        jsonRead(parameters, "Nomer", nomer);
+
+        String rt56 = "";
+        jsonRead(parameters, "id2show", _id2show);
+        bar_id2.push_back(_id2show);
+        bar_id.push_back(_id);
+    
+      
+        if (name == "TabPage" && tab2 >= nomer ) 
+        {
+                ui_Bar.push_back( lv_bar_create( ui_TabPage[nomer - 1]));
+        }
+          else if (name == "Button" && isf1 >= nomer ) 
+        {   
+                ui_Bar.push_back( lv_bar_create( ui_Button[nomer - 1]));
+        }
+        else if (name == "Container" && cont >= nomer ) {
+             
+                ui_Bar.push_back( lv_bar_create( ui_Container[nomer - 1]));}
+        else 
+        {
+                ui_Bar.push_back( lv_bar_create( ui_Screen1)); 
+        } 
+           
+
+         jsonRead(parameters, "x", _x);
+         jsonRead(parameters, "y", _y);
+         jsonRead(parameters, "width", _x1);
+         jsonRead(parameters, "height", _y1);
+         jsonRead(parameters, "color", color);
+         jsonRead(parameters, "range_sart", _x2);
+         jsonRead(parameters, "range_end", _y2);
+         
+         
+      
+    lv_obj_set_width( ui_Bar[bar], _x1);
+    lv_obj_set_height( ui_Bar[bar], _y1);
+    lv_obj_set_x( ui_Bar[bar], _x);
+    lv_obj_set_y( ui_Bar[bar], _y);
+    lv_bar_set_range( ui_Bar[bar], _x2, _y2);
+    lv_bar_set_value(ui_Bar[bar], value.valD , LV_ANIM_OFF);
+    lv_bar_set_start_value(ui_Bar[bar], 40, LV_ANIM_OFF);
+
+    lv_obj_set_style_bg_color(ui_Bar[bar], lv_color_hex(color), LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_Bar[bar], 255, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+        
+     
+        bar1 = bar;
+        bar = bar + 1;
+
+        if (_id2show != _id) {
+        IoTItem* trackingItem = findIoTItem(_id2show);
+        if (trackingItem != nullptr) {
+            _trackingValue = &(trackingItem->value);
+            bar_id2[bar1] = "";
+        }
+    }
+}
+
+void onRegEvent(IoTItem* eventItem) override {
+        if ((_trackingValue == nullptr) && eventItem && eventItem->getID() == _id2show) {
+            _trackingValue = &(eventItem->value);
+            bar_id2[bar1] = "";
+        }
+        if (eventItem && eventItem->getID() == _id2show && !_generateOrderForTracking) {
+            if (_valueSource != "web" && _valueSource != "mqtt") {
+                _valueSource = "id2show";
+            }
+            Serial.printf("[onRegEvent] %s registered event, source: %s\n", eventItem->getID().c_str(), _valueSource.c_str());
+        }
+        if (eventItem && _id2show == eventItem->getID()) {
+            setValue(eventItem->value, false);
+        }
+        IoTItem::onRegEvent(eventItem);
+    }
+
+    void onTrackingValue(IoTItem* item) override {
+        if (!item || _id == _id2show) return;
+
+        bool isOwnOrder = _generateOrderForTracking && (millis() - _lastOrderTime < 50);
+        if (isOwnOrder) {
+            Serial.printf("[%s] onTrackingValue: own order from %s\n", _valueSource.c_str(), item->getID().c_str());
+        } else {
+            if ((millis() - _lastExternalUpdateTime < 100) && _lastExternalUpdateSource != "") {
+                _valueSource = _lastExternalUpdateSource;
+                Serial.printf("[%s] onTrackingValue: external update from %s\n", _valueSource.c_str(), item->getID().c_str());
+            } else {
+                _valueSource = "id2show";
+                Serial.printf("[id2show] onTrackingValue: external update from %s\n", item->getID().c_str());
+            }
+        }
+        _generateOrderForTracking = false;
+        _pendingMqttUpdate = false;
+        _lastExternalUpdateSource = "";
+        IoTItem::onTrackingValue(item);
+    }
+
+    String valrt = "";
+void drawItem(IoTItem *item) {
+   
+              lv_bar_set_value(ui_Bar[bar1], value.valD , LV_ANIM_OFF);
+            
+             if (_id2show != _id && valrt != String(value.valD) && (_valueSource == "web" || _valueSource == "mqtt")){
+                _generateOrderForTracking = true;
+                _lastOrderTime = millis();
+                if ( _trackingValue == nullptr)  {
+                otpravkaidvalue( _id2show, String(value.valD)); 
+                valrt = String(value.valD);    
+            }
+            else { generateOrder( _id2show, String(value.valD)); 
+                valrt = String(value.valD); 
+             }
+        } 
+    }
+
+
+  void setValue(const IoTValue& Value, bool genEvent = true) {
+        value = Value;
+
+        bool directOrder = isCurrentOrderForMe();
+        if (_pendingMqttUpdate) {
+            _valueSource = "mqtt";
+            _pendingMqttUpdate = false;
+        } else if (directOrder) {
+            _valueSource = "web";
+        }
+
+        drawItem(this);
+        regEvent((String)(int)value.valD, F("Panel_bar"), false, genEvent);
+    }
+
+    String getValue() {
+        return (String)(int)value.valD;
+    }
+
+    void onModuleOrder(String& key, String& value) override {
+        if (key == _id || key == _id2show) {
+            _valueSource = "web";
+            _pendingMqttUpdate = false;
+            if (key == _id2show && !_generateOrderForTracking) {
+                _lastExternalUpdateTime = millis();
+                _lastExternalUpdateSource = "web";
+            }
+            Serial.printf("[web] ModuleOrder: %s = %s\n", key.c_str(), value.c_str());
+        }
+        IoTItem::onModuleOrder(key, value);
+    }
+
+    bool isCurrentOrderForMe() {
+        if (orderBuf.length() == 0) return false;
+        String currentOrder = selectToMarker(orderBuf, ",");
+        if (currentOrder.length() == 0) return false;
+        String currentKey = selectToMarker(currentOrder, " ");
+        return currentKey == _id;
+    }
+
+   
+    IoTValue execute(String command, std::vector<IoTValue> &param){
+
+            if (command == "hide"){
+                lv_obj_add_flag(ui_Bar[bar - 1], LV_OBJ_FLAG_HIDDEN);
+            };
+           
+            if (command == "show"){
+                 lv_obj_clear_flag(ui_Bar[bar - 1], LV_OBJ_FLAG_HIDDEN);
+            };
+
+             if (command == "color"){
+             color = param[0].valD;
+             lv_obj_set_style_arc_color(ui_Bar[bar - 1], lv_color_hex(color), LV_PART_INDICATOR | LV_STATE_DEFAULT);
+            }
+            if (command == "pos"){
+                _x = param[0].valD;
+                _y = param[1].valD;
+                lv_obj_set_pos(ui_Bar[bar - 1], _x, _y);
+    
+            }
+        return {};
+
+     };
+
+
+
+    void onMqttRecive(String& topic, String& msg) override {
+        _pendingMqttUpdate = true;
+        IoTItem::onMqttRecive(topic, msg);
+    }
+
+ ~Panel_bar(){};
+};
+
+
+
+
+//////////////////////////////////////////////
+////////// слайдер
+
+
+class Panel_slider : public IoTItem {
+
+private:
+
+int nomer = 1;
+String  name = "";
+int _x = 0, _y = 0, _x1 = 0, _y1 =0;
+int _x2 = 0, _y2 = 100, _x3 = 120, _y3 = 60;
+int color = 15792634, color_indicator = 13504009, color_knob = 4142987;
+//int  size = 15;
+int valy = 0, scal = 0, scale_division = 11;
+ lv_obj_t * scale = NULL;
+ String _id2show = "";
+ String _valueSource = "unknown";
+ bool _pendingMqttUpdate = false;
+ bool _generateOrderForTracking = false;
+ unsigned long _lastOrderTime = 0;
+ unsigned long _lastExternalUpdateTime = 0;
+ String _lastExternalUpdateSource = "";
+ int sla1 = 0;
+
+
+public:
+    Panel_slider(String parameters) : IoTItem(parameters) {
+
+
+        
+        jsonRead(parameters, "NAME", name);
+        jsonRead(parameters, "Nomer", nomer);
+
+        String rt56 = "";
+        jsonRead(parameters, "id2show", _id2show);
+        Slaider_id2.push_back(_id2show);
+        Slaider_id.push_back(_id);
+         _round = 1;
+
+        jsonRead(parameters, "scale", scal);
+        jsonRead(parameters, "scale_division", scale_division);
+       // jsonRead(parameters, "round", _round);
+         
+
+      //  _round = 0;
+    
+      
+        if (name == "TabPage" && tab2 >= nomer ) 
+        {
+                ui_Slaider.push_back( lv_slider_create( ui_TabPage[nomer - 1]));
+                if (scal == 1)  scale = lv_scale_create( ui_TabPage[nomer - 1]);
+        }
+          else if (name == "Button" && isf1 >= nomer ) 
+        {   
+                ui_Slaider.push_back( lv_slider_create( ui_Button[nomer - 1]));
+                if (scal == 1)   scale = lv_scale_create(ui_Button[nomer - 1]);
+        }
+        else if (name == "Container" && cont >= nomer ) {
+             
+                ui_Slaider.push_back( lv_slider_create( ui_Container[nomer - 1]));
+                if (scal == 1)  scale = lv_scale_create(ui_Container[nomer - 1]);
+            }
+
+        else 
+        {
+                ui_Slaider.push_back( lv_slider_create( ui_Screen1)); 
+                if (scal == 1)   scale = lv_scale_create(ui_Screen1);
+        } 
+           
+
+         jsonRead(parameters, "x", _x);
+         jsonRead(parameters, "y", _y);
+         jsonRead(parameters, "width", _x1);
+         jsonRead(parameters, "height", _y1);
+         jsonRead(parameters, "color_indicator", color_indicator);
+         jsonRead(parameters, "color", color);
+         jsonRead(parameters, "color_knob", color_knob);
+         jsonRead(parameters, "range_sart", _x2);
+         jsonRead(parameters, "range_end", _y2);
+        // jsonRead(parameters, "val", valy);
+
+    if (scal == 1) {
+    
+    lv_obj_set_size(scale, _x1, _y1);
+    if (_x1 > _y1){
+    lv_scale_set_mode(scale, LV_SCALE_MODE_HORIZONTAL_BOTTOM);
+    lv_obj_set_x(scale, _x);
+    lv_obj_set_y(scale, _y + _y1);
+    }
+    else {lv_scale_set_mode(scale, LV_SCALE_MODE_VERTICAL_RIGHT);
+    lv_obj_set_x(scale, _x + _x1);
+    lv_obj_set_y(scale, _y);
+    }
+    lv_scale_set_label_show(scale, true);
+
+    lv_scale_set_total_tick_count(scale, scale_division);
+    lv_scale_set_major_tick_every(scale, 1);
+
+    lv_scale_set_range(scale, _x2, _y2); 
+    lv_obj_set_style_text_color(scale, lv_color_hex(color_knob), LV_PART_INDICATOR |  LV_STATE_DEFAULT);
+    lv_obj_set_style_line_color(scale, lv_color_hex(color), LV_PART_INDICATOR |  LV_STATE_DEFAULT);
+  
+}
+
+    if(lv_slider_get_mode(ui_Slaider[sla]) == LV_SLIDER_MODE_RANGE) lv_slider_set_left_value(ui_Slaider[sla], 0, LV_ANIM_OFF);
+    lv_obj_set_width( ui_Slaider[sla], _x1);
+    lv_obj_set_height(ui_Slaider[sla], _y1);
+    lv_obj_set_x(ui_Slaider[sla], _x);
+    lv_obj_set_y(ui_Slaider[sla], _y);
+    lv_slider_set_range(ui_Slaider[sla], _x2 * 10, _y2 * 10);
+    lv_obj_set_align(ui_Slaider[sla], LV_ALIGN_DEFAULT);
+    lv_obj_set_style_bg_color(ui_Slaider[sla], lv_color_hex(color), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_Slaider[sla], 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+   
+
+    lv_obj_set_style_bg_color(ui_Slaider[sla], lv_color_hex(color_indicator), LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_Slaider[sla], 255, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+
+    lv_obj_set_style_bg_color(ui_Slaider[sla], lv_color_hex(color_knob), LV_PART_KNOB | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_Slaider[sla], 255, LV_PART_KNOB | LV_STATE_DEFAULT);
+
+    
+     lv_obj_add_event_cb(ui_Slaider[sla], ui_event_Slaider, LV_EVENT_ALL, (void*)sla);
+
+    lv_slider_set_value(ui_Slaider[sla], value.valD * 10 , LV_ANIM_OFF);
+
+     lv_obj_add_event_cb(ui_Slaider[sla], ui_event_Scrin, LV_EVENT_PRESSED, (void*)1);
+     
+     sla1 = sla;
+        sla = sla + 1;
+
+        if (_id2show != _id) {
+        IoTItem* trackingItem = findIoTItem(_id2show);
+        if (trackingItem != nullptr) {
+            _trackingValue = &(trackingItem->value);
+            Slaider_id2[sla1] = "";
+        }
+    }
+}
+
+   void onRegEvent(IoTItem* eventItem) override {
+        if ((_trackingValue == nullptr) && eventItem && eventItem->getID() == _id2show) {
+            _trackingValue = &(eventItem->value);
+            Slaider_id2[sla1] = "";
+        }
+        if (eventItem && eventItem->getID() == _id2show && !_generateOrderForTracking) {
+            if (_valueSource != "web" && _valueSource != "mqtt") {
+                _valueSource = "id2show";
+            }
+            Serial.printf("[onRegEvent] %s registered event, source: %s\n", eventItem->getID().c_str(), _valueSource.c_str());
+        }
+     //   if (eventItem && _id2show == eventItem->getID()) {
+     //       setValue(eventItem->value, false);
+     //   }
+        IoTItem::onRegEvent(eventItem);
+    }
+
+    void onTrackingValue(IoTItem* item) override {
+        if (!item || _id == _id2show) return;
+
+        bool isOwnOrder = _generateOrderForTracking && (millis() - _lastOrderTime < 50);
+        if (isOwnOrder) {
+            Serial.printf("[%s] onTrackingValue: own order from %s\n", _valueSource.c_str(), item->getID().c_str());
+        } else {
+            if ((millis() - _lastExternalUpdateTime < 100) && _lastExternalUpdateSource != "") {
+                _valueSource = _lastExternalUpdateSource;
+                Serial.printf("[%s] onTrackingValue: external update from %s\n", _valueSource.c_str(), item->getID().c_str());
+            } else {
+                _valueSource = "id2show";
+                Serial.printf("[id2show] onTrackingValue: external update from %s\n", item->getID().c_str());
+            }
+        }
+        _generateOrderForTracking = false;
+        _pendingMqttUpdate = false;
+        _lastExternalUpdateSource = "";
+        IoTItem::onTrackingValue(item);
+    }
+
+  String valrt = "";
+   void drawItem(IoTItem *item) {
+
+             lv_slider_set_value(ui_Slaider[sla1], value.valD * 10 , LV_ANIM_OFF);
+             
+                if (_id2show != _id && valrt != String(value.valD) && (_valueSource == "web" || _valueSource == "mqtt")){
+                    _generateOrderForTracking = true;
+                    _lastOrderTime = millis();
+                    if ( findIoTItem(_id2show) == nullptr)  {
+                        otpravkaidvalue( _id2show, String(value.valD)); 
+                        valrt = String(value.valD);    
+                    }
+                    else { 
+                        generateOrder( _id2show, String(value.valD)); 
+                        valrt = String(value.valD); 
+                    }
+                }
+    }
+
+    void setValue(const IoTValue& Value, bool genEvent = true) {
+        value = Value;
+
+        bool directOrder = isCurrentOrderForMe();
+        if (_pendingMqttUpdate) {
+            _valueSource = "mqtt";
+            _pendingMqttUpdate = false;
+        } else if (directOrder) {
+            _valueSource = "web";
+        }
+
+        drawItem(this);
+        regEvent((String)(float)value.valD, F("Panel_slider"), false, genEvent);
+    }
+
+   String getValue() {
+       return (String)(float)value.valD;
+   }
+
+    void onModuleOrder(String& key, String& value) override {
+        if (key == _id || key == _id2show) {
+            _valueSource = "web";
+            _pendingMqttUpdate = false;
+            if (key == _id2show && !_generateOrderForTracking) {
+                _lastExternalUpdateTime = millis();
+                _lastExternalUpdateSource = "web";
+            }
+            Serial.printf("[web] ModuleOrder: %s = %s\n", key.c_str(), value.c_str());
+        }
+        IoTItem::onModuleOrder(key, value);
+    }
+
+    bool isCurrentOrderForMe() {
+        if (orderBuf.length() == 0) return false;
+        String currentOrder = selectToMarker(orderBuf, ",");
+        if (currentOrder.length() == 0) return false;
+        String currentKey = selectToMarker(currentOrder, " ");
+        return currentKey == _id;
+    }
+
+   
+    IoTValue execute(String command, std::vector<IoTValue> &param){
+
+            if (command == "hide"){
+                lv_obj_add_flag(ui_Slaider[sla - 1], LV_OBJ_FLAG_HIDDEN);
+            };
+           
+            if (command == "show"){
+                 lv_obj_clear_flag(ui_Slaider[sla - 1], LV_OBJ_FLAG_HIDDEN);
+            };
+
+             if (command == "color"){
+             color = param[0].valD;
+              lv_obj_set_style_bg_color(ui_Slaider[sla - 1], lv_color_hex(color), LV_PART_INDICATOR | LV_STATE_DEFAULT);
+            }
+            if (command == "pos"){
+                _x = param[0].valD;
+                _y = param[1].valD;
+                lv_obj_set_pos(ui_Slaider[sla - 1], _x, _y);
+    
+            }
+        return {};
+
+     };
+
+
+
+    void onMqttRecive(String& topic, String& msg) override {
+        _pendingMqttUpdate = true;
+        IoTItem::onMqttRecive(topic, msg);
+    }
+
+ ~Panel_slider(){};
+};
+
+
+
+// обработка слайдер с экрана
+void ui_event_Slaider(lv_event_t * e)
+{
+   int i = (int)lv_event_get_user_data(e);
+  
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+   float vert = 0;      
+
+    if (event_code == LV_EVENT_RELEASED){ 
+    vert = lv_slider_get_value(ui_Slaider[i]);
+    
+        generateOrder( Slaider_id[i], String(vert/10));
+    }    
+    
+
+}
+
+
+
+
+/////////////////////////////////////////////////////////
+/////// картинки /////////////////////
+
+class Panel_img : public IoTItem {
+
+private:
+
+int nomer = 1;
+String  name = "";
+int _x = 0, _y = 0, _x1 = 0, _y1 =0;
+int _x2 = 0, _y2 = 100, _x3 = 120, _y3 = 60;
+int color = 0x1A7D35;
+int valy = 0;
+
+public:
+    Panel_img(String parameters) : IoTItem(parameters) {
+
+        
+        jsonRead(parameters, "NAME", name);
+        jsonRead(parameters, "Nomer", nomer);
+
+        
+    
+      
+        if (name == "TabPage" && tab2 >= nomer ) 
+        {
+                ui_Image.push_back( lv_image_create( ui_TabPage[nomer - 1]));
+        }
+          else if (name == "Button" && isf1 >= nomer ) 
+        {   
+                ui_Image.push_back( lv_image_create( ui_Button[nomer - 1]));
+        }
+        else if (name == "Container" && cont >= nomer ) {
+             
+                ui_Image.push_back( lv_image_create( ui_Container[nomer - 1]));}
+        else 
+        {
+                ui_Image.push_back( lv_image_create( ui_Screen1)); 
+        } 
+           
+
+         jsonRead(parameters, "x", _x);
+         jsonRead(parameters, "y", _y);
+         jsonRead(parameters, "width", _x1);
+         jsonRead(parameters, "height", _y1);
+         jsonRead(parameters, "color", color);
+         String file = "";
+        String name_img = "";
+         jsonRead(parameters, "file", file);
+         jsonRead(parameters, "name_img", name_img);
+         
+        
+    lv_obj_set_width(ui_Image[img], LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_Image[img], LV_SIZE_CONTENT);    /// 1
+    lv_obj_add_flag(ui_Image[img], LV_OBJ_FLAG_CLICKABLE);     /// Flags
+    lv_obj_remove_flag(ui_Image[img], LV_OBJ_FLAG_SCROLLABLE);     
+         
+      
+    
+    lv_obj_set_x( ui_Image[img], _x);
+    lv_obj_set_y( ui_Image[img], _y);
+
+
+
+  
+     // LV_IMG_DECLARE(solnce);
+
+   // LV_IMG_DECLARE(oblo);
+
+
+   // if (name_img == "solnce")
+   //    lv_img_set_src(ui_Image[img], &solnce);
+
+   // else if (name_img == "oblo")
+   //    lv_img_set_src(ui_Image[img], &oblo);
+
+        img = img + 1;
+}
+
+
+
+
+
+  void setValue(const IoTValue& Value, bool genEvent = true) {
+        value = Value;
+        regEvent((String)(int)value.valD, F("Panel_img"), false, genEvent);
+    }
+
+    String getValue() {
+        return (String)(int)value.valD;
+    }
+
+   
+    IoTValue execute(String command, std::vector<IoTValue> &param){
+
+            if (command == "hide"){
+                lv_obj_add_flag(ui_Image[img - 1], LV_OBJ_FLAG_HIDDEN);
+            };
+           
+            if (command == "show"){
+                 lv_obj_clear_flag(ui_Image[img - 1], LV_OBJ_FLAG_HIDDEN);
+            };
+
+             if (command == "color"){
+             color = param[0].valD;
+             lv_obj_set_style_img_recolor(ui_Image[img - 1], lv_color_hex(color), LV_PART_MAIN | LV_STATE_DEFAULT);
+            }
+            if (command == "pos"){
+                _x = param[0].valD;
+                _y = param[1].valD;
+                lv_obj_set_pos(ui_Image[img - 1], _x, _y);
+    
+            }
+        return {};
+
+     };
+
+
+
+    void onMqttRecive(String& topic, String& msg) override {
+        // Panel_img may not need MQTT handling, but adding for consistency
+        IoTItem::onMqttRecive(topic, msg);
+    }
+
+ ~Panel_img(){};
+};
+
+
+void spi_init() {
+    SPI.begin(48, 41, 47); // SCK, MISO, MOSI
+    SPI.setFrequency(40000000); // 40 MHz
+    SPI.setDataMode(SPI_MODE0);
+    SPI.setBitOrder(MSBFIRST);
+}
+
+void sd_init() {
+    if (!SD.begin(42, SPI, 40000000, "/B")) {
+        SerialPrint("e", F("SD"), "Failed to initialize SD card");
+        return;
+    }
+    SerialPrint("i", F("SD"), "SD card initialized successfully");
+}
+
+
+
+
+//////////////////////////////////////////////////////
+    //      ФУНКЦИИ          
+//////////////////////////////////////////////////////
+
+void otpravkaidvalue(String id1, String zn){
+
+    
+         if (mqttIsConnect() == 1){
+
+            String json = "{}";
+             String json1 = "{}";
+            jsonWriteStr_(json, "id",id1);
+            jsonWriteStr_(json, "val", zn);
+            jsonWriteInt_(json, "int", 0);
+            Serial.println("///////" +id1 + " " + zn);
+            SerialPrint("i", F("=>MQTT"), "Generate event: " + json);
+         if ( json != json1) {
+            publishEvent(id1,json);
+            publishStatusMqtt(id1,zn);
+            generateOrder(id1, zn );
+            json1 = json;
+         }
+        }
+}
+         
+
+
+/////////////
+// ПРЕОБРОЗОВАНИЕ ШРИФТОВ
+void conshrift( lv_font_t &shri , int &sh ){
+
+if (sh == 40 ){  shri = serg40;}
+else if (sh == 60 ){  shri = serg60;}
+else if (sh == 80 ){  shri = serg80;}
+else if (sh == 100 ){ shri = serg100;}
+else if (sh == 120 ){ shri = serg120;}
+else if (sh == 43 ){ shri = serg43;}
+else
+
+{ shri = serg20;}
+}
+
+
+
+
+/////////////////////
+// обработка прихода mqtt
+/**
+void generateScreen(String id, String stat){
+
+    
+    // обработка переключателя
+    for (size_t i = 0; i < isf; i++)
+    {
+        if (switch_id2[i] == id && getItemValue(switch_id[i]) != stat ){
+       
+        if (stat == "1"){
+           if (getItemValue(switch_id[i]) != stat ) {
+           generateOrder(switch_id[i], stat );
+            }
+        }
+        else if (stat == "0"){
+            if (getItemValue(switch_id[i]) != stat ) {
+           generateOrder(switch_id[i], stat );
+            }
+        }
+    
+       }
+    }  
+
+    // обработка текста
+    for (size_t i = 0; i < nb; i++)
+    { 
+    if (label_id2[i] == id ){
+        
+        if (getItemValue(id) != stat){
+       //  String valy1 = label_descr[i] + " " + stat + " " + label_descr1[i];  
+       // lv_label_set_text(ui_Label[i], valy1.c_str());
+      // _valueSource = "mqtt";
+       // _pendingMqttUpdate = true;
+         //   if (_pendingMqttUpdate) {
+
+      
+     //   generateOrder(label_id[i], stat);
+        }
+        }
+    }
+
+
+    // обработка ввода текста
+    for (size_t i = 0; i < tex; i++){
+    
+    if (TextArea_id2[i] == id && getItemValue(id) != stat ){
+
+            generateOrder(TextArea_id[i], stat);
+        }
+    }
+
+    // обработка кнопки
+    for (size_t i = 0; i < isf1; i++)
+    {
+        if (button_id[i] == id ){
+
+            if (button_diger[i] == 0){}
+            else{
+   
+        if (stat == "1"){
+          
+
+            if (getItemValue(button_value[i]) != stat ) {
+           generateOrder(button_value[i], "1" );
+         
+            }
+        }
+        else if (stat == "0"){
+                if (getItemValue(button_value[i]) != stat ) {
+           generateOrder(button_value[i], "0" );
+                }
+        
+        } 
+            }
+       }
+    } 
+
+     // обработка дуги
+    for (size_t i = 0; i < arc; i++)
+    {
+        if (arc_id2[i] == id && getItemValue(arc_id[i]) != stat && sla_millis + 350 < millis() ){   
+      float _stat = stat.toFloat() ; 
+        lv_arc_set_value( ui_Arc[i], _stat * 10);
+       generateOrder(arc_id[i], String(_stat));
+            sla_millis = millis();
+        }
+    }
+    
+
+    // обработка текста дуги
+    for (size_t i = 0; i < arlb; i++)
+    { 
+    if (arc_labal_id[i] == id ){
+   
+        const char*  _text = stat.c_str();   
+        lv_arclabel_set_text(ui_ArcLabel[i],  _text);
+     
+        }
+    }
+
+
+     // обработка bar
+    for (size_t i = 0; i < bar; i++)
+    {  
+        if (bar_id2[i] == id && getItemValue(bar_id[i]) != stat ){  
+        generateOrder(bar_id[i], stat);
+         
+       }
+    }
+
+
+    /// обработка слайдер
+    for (size_t i = 0; i < sla; i++)
+    {
+        if (Slaider_id2[i] == id && getItemValue(Slaider_id[i]) != stat ){
+        generateOrder(Slaider_id[i],  stat);
+        
+        }
+    }
+    
+
+
+}
+*/
+
+
+
+
+void *getAPI_Panel(String subtype, String param) {
+    if (subtype == F("Panel")) {
+        return new Panel(param);
+    } else if (subtype == F("Panel_tabview")) {
+        return new Panel_tabview(param);
+    } else if (subtype == F("Panel_button")) {
+        return new Panel_button(param);
+    } else if (subtype == F("Panel_label")) {
+        return new Panel_label(param);
+    } else  if (subtype == F("Panel_swith")) {
+        return new Panel_swith(param);
+    } else  if (subtype == F("Panel_Container")) {
+        return new Panel_Container(param); 
+    } else  if (subtype == F("Panel_arc")) {
+        return new Panel_arc(param);
+    } else  if (subtype == F("Panel_arc_text")) {
+        return new Panel_arc_text(param);     
+    } else  if (subtype == F("Panel_TextArea")) {
+        return new Panel_TextArea(param); 
+    } else  if (subtype == F("Panel_bar")) {
+        return new Panel_bar(param);  
+    } else  if (subtype == F("Panel_slider")) {
+        return new Panel_slider(param);
+    } else  if (subtype == F("Panel_img")) {
+        return new Panel_img(param);
+    } else     {
+        return nullptr;
+    }
+}
+
+
