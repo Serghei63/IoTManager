@@ -37,7 +37,7 @@ Panel_AnalogClock::Panel_AnalogClock(String parameters) : IoTItem(parameters) {
     secondColor = secondColor ? secondColor : 0xFF3B30;
     markColor   = markColor   ? markColor   : 0xAAAAAA;
 
-    timezone = 3;
+    timezone = 2;
     jsonRead(parameters, "timezone", timezone);
 
     if (name == "TabPage" && tab2 >= nomer) {
